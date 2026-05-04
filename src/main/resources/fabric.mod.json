@@ -1,10 +1,10 @@
 {
     "schemaVersion": 1,
-    "id": "${project.modId}",
-    "version": "${project.version}",
+    "id": "${modId}",
+    "version": "${version}",
     "environment": "client",
     "name": "Prometheus",
-    "description": "${project.description}",
+    "description": "${description}",
     "authors": [
         "dxxxxy"
     ],
