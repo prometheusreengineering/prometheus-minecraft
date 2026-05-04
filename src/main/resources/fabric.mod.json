@@ -1,0 +1,21 @@
+{
+    "schemaVersion": 1,
+    "id": "${project.modId}",
+    "version": "${project.version}",
+    "environment": "client",
+    "name": "Prometheus",
+    "description": "${project.description}",
+    "authors": [
+        "dxxxxy"
+    ],
+    "license": "GPL-3.0",
+    "contact": {
+        "discord": "https://discord.gg/zXFKGhRKZQ"
+    },
+    "icon": "assets/prometheus/icon.png",
+    "entrypoints": {
+        "preLaunch": [
+            "studio.dreamys.prometheus.Prometheus"
+        ]
+    }
+}

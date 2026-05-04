@@ -1,0 +1,10 @@
+[
+    {
+        "modId": "lunar",
+        "repositoryName": "minecraft-lunar"
+    },
+    {
+        "modId": "essential",
+        "repositoryName": "minecraft-essential"
+    }
+]
