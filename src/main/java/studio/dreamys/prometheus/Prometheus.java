@@ -61,9 +61,15 @@ public class Prometheus implements PreLaunchEntrypoint {
         }
     }
 
-    private void addToClasspath(Path jar) {
-        logger.log(Level.INFO, String.format("Attempting to add %s to classpath", jar));
-        FabricLauncherBase.getLauncher().addToClassPath(jar);
+    private void addMixinConfigs(Path jar) {
+        try (JarFile jarFile = new JarFile(jar.toFile())) {
+            jarFile.stream().map(ZipEntry::getName).filter(name -> name.endsWith(".mixins.json")).forEach(Mixins::addConfiguration);
+
+            logger.log(Level.INFO, "Successfully added mixin configs from " + jar);
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Failed to read mixin configs from " + jar, e);
+            throw new RuntimeException(e);
+        }
     }
 
     private List<Patch> getAvailablePatches() {
