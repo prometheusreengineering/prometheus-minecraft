@@ -1,0 +1,13 @@
+[
+    {
+        "modid": "${modId}",
+        "name": "Prometheus",
+        "description": "${description}",
+        "version": "${version}",
+        "authorList": [
+            "dxxxxy"
+        ],
+        "url": "https://discord.gg/zXFKGhRKZQ",
+        "logoFile": "assets/prometheus/icon.png"
+    }
+]
