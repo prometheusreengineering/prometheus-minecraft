@@ -91,7 +91,7 @@ public class Prometheus implements PreLaunchEntrypoint {
         try {
             logger.log(Level.INFO, "Preparing to download from " + url);
 
-            Path cacheDir = FabricLoader.getInstance().getGameDir().resolve("prometheus-cache");
+            Path cacheDir = Paths.get("prometheus", "cache");
             Files.createDirectories(cacheDir);
 
             String fileName = url.substring(url.lastIndexOf("/") + 1);
