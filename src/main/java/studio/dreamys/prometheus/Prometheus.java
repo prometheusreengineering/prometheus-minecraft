@@ -6,14 +6,13 @@ import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint;
+import net.fabricmc.loader.impl.launch.FabricLauncherBase;
 import org.spongepowered.asm.mixin.Mixins;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.reflect.Method;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -27,7 +26,7 @@ public class Prometheus implements PreLaunchEntrypoint {
     private static final Logger logger = Logger.getLogger("Prometheus");
 
     static {
-        //overwrite environment logger settings
+        //overwrite aggressive environment logger settings
         Handler handler = new StandardOutputHandler();
         handler.setLevel(Level.ALL);
         logger.addHandler(handler);
@@ -53,7 +52,7 @@ public class Prometheus implements PreLaunchEntrypoint {
         }
     }
 
-    public static boolean isClassPresent(String classPath) {
+    private boolean isClassPresent(String classPath) {
         try {
             Class.forName(classPath, false, Thread.currentThread().getContextClassLoader());
             return true;
@@ -63,22 +62,8 @@ public class Prometheus implements PreLaunchEntrypoint {
     }
 
     private void addToClasspath(Path jar) {
-        try {
-            ClassLoader classLoader = FabricLoader.getInstance().getClass().getClassLoader();
-
-            if (classLoader instanceof URLClassLoader) {
-                Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
-                method.setAccessible(true);
-                method.invoke(classLoader, jar.toUri().toURL());
-                logger.log(Level.INFO, String.format("Successfully added %s classpath", jar));
-            } else {
-                logger.log(Level.SEVERE, "Unsupported class loader " + classLoader.getClass().getName());
-                throw new RuntimeException("Unsupported class loader " + classLoader.getClass().getName());
-            }
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, String.format("Failed to add %s to classpath", jar), e);
-            throw new RuntimeException(e);
-        }
+        logger.log(Level.INFO, String.format("Attempting to add %s to classpath", jar));
+        FabricLauncherBase.getLauncher().addToClassPath(jar);
     }
 
     private List<Patch> getAvailablePatches() {
