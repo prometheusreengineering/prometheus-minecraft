@@ -4,9 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-import net.fabricmc.loader.api.FabricLoader;
-import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint;
-import net.fabricmc.loader.impl.launch.FabricLauncherBase;
 import org.spongepowered.asm.mixin.Mixins;
 
 import java.io.IOException;
@@ -15,15 +12,20 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.jar.JarFile;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
 
-public class Prometheus implements PreLaunchEntrypoint {
-    private static final Gson gson = new Gson();
-    private static final Logger logger = Logger.getLogger("Prometheus");
+public abstract class Prometheus {
+    public static final Gson gson = new Gson();
+    public static final Logger logger = Logger.getLogger("Prometheus");
+
+    protected abstract void addToClasspath0(Path jar);
 
     static {
         //overwrite aggressive environment logger settings
@@ -34,8 +36,7 @@ public class Prometheus implements PreLaunchEntrypoint {
         logger.setUseParentHandlers(false);
     }
 
-    @Override
-    public void onPreLaunch() {
+    protected void patch() {
         List<Patch> availablePatches = getAvailablePatches();
         logger.log(Level.INFO, String.format("Found %d available patches in remote repository", availablePatches.size()));
 
@@ -48,11 +49,11 @@ public class Prometheus implements PreLaunchEntrypoint {
 
             addToClasspath(file);
 
-            Mixins.addConfiguration(String.format("prometheus.%s.mixins.json", patch.id));
+            addMixinConfigs(file);
         }
     }
 
-    private boolean isClassPresent(String classPath) {
+    protected boolean isClassPresent(String classPath) {
         try {
             Class.forName(classPath, false, Thread.currentThread().getContextClassLoader());
             return true;
@@ -61,7 +62,12 @@ public class Prometheus implements PreLaunchEntrypoint {
         }
     }
 
-    private void addMixinConfigs(Path jar) {
+    protected void addToClasspath(Path jar) {
+        logger.log(Level.INFO, String.format("Attempting to add %s to classpath", jar));
+        addToClasspath0(jar);
+    }
+
+    protected void addMixinConfigs(Path jar) {
         try (JarFile jarFile = new JarFile(jar.toFile())) {
             jarFile.stream().map(ZipEntry::getName).filter(name -> name.endsWith(".mixins.json")).forEach(Mixins::addConfiguration);
 
@@ -72,7 +78,7 @@ public class Prometheus implements PreLaunchEntrypoint {
         }
     }
 
-    private List<Patch> getAvailablePatches() {
+    protected List<Patch> getAvailablePatches() {
         try (InputStream inputStream = new URL("https://raw.githubusercontent.com/prometheusreengineering/prometheus-minecraft/main/patches.json").openConnection().getInputStream()) {
             return gson.fromJson(new InputStreamReader(inputStream), new TypeToken<List<Patch>>() {}.getType());
         } catch (IOException e) {
@@ -81,7 +87,7 @@ public class Prometheus implements PreLaunchEntrypoint {
         }
     }
 
-    private String getLatestReleaseDownloadUrl(Patch patch) {
+    protected String getLatestReleaseDownloadUrl(Patch patch) {
         try (InputStream inputStream = new URL(String.format("https://api.github.com/repos/prometheusreengineering/%s/releases/latest", patch.repositoryName)).openConnection().getInputStream()) {
             JsonObject body = gson.fromJson(new InputStreamReader(inputStream), JsonObject.class);
             JsonArray assets = body.getAsJsonArray("assets");
@@ -93,7 +99,7 @@ public class Prometheus implements PreLaunchEntrypoint {
         }
     }
 
-    private Path downloadCachedFile(String url) {
+    protected Path downloadCachedFile(String url) {
         try {
             logger.log(Level.INFO, "Preparing to download from " + url);
 
