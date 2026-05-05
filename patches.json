@@ -5,8 +5,13 @@
         "repositoryName": "minecraft-lunar"
     },
     {
-        "name": "Essential Mod",
+        "name": "Essential Mod (Fabric)",
         "classPath": "gg.essential.loader.stage0.EssentialSetupPreLaunch",
+        "repositoryName": "minecraft-essential"
+    },
+    {
+        "name": "Essential Mod (Forge)",
+        "classPath": "gg.essential.loader.stage0.EssentialSetupTweaker",
         "repositoryName": "minecraft-essential"
     }
 ]
