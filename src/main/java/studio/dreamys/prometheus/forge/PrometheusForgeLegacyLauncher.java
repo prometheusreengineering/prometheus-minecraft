@@ -7,7 +7,6 @@ import studio.dreamys.prometheus.Prometheus;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.logging.Level;
 
 public class PrometheusForgeLegacyLauncher extends Prometheus implements ITweaker {
     private LaunchClassLoader launchClassLoader;
@@ -17,7 +16,7 @@ public class PrometheusForgeLegacyLauncher extends Prometheus implements ITweake
         try {
             launchClassLoader.addURL(jar.toUri().toURL());
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to add patch to classpath", e);
+            log("Failed to add patch to classpath", e);
         }
     }
 
