@@ -23,6 +23,8 @@ public abstract class Prometheus {
 
     protected abstract void addToClasspath0(Path jar);
 
+    protected abstract boolean isClassPresent(String classPath);
+
     protected void log(String message) {
         System.out.println("[Prometheus] (INFO) " + message);
     }
@@ -47,15 +49,6 @@ public abstract class Prometheus {
             addToClasspath(file);
 
             addMixinConfigs(file);
-        }
-    }
-
-    protected boolean isClassPresent(String classPath) {
-        try {
-            Class.forName(classPath, false, Thread.currentThread().getContextClassLoader());
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
         }
     }
 
