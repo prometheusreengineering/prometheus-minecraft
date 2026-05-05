@@ -1,10 +1,14 @@
 [
     {
-        "modId": "lunar",
+        "name": "Lunar Client",
+        "id": "lunar",
+        "classPath": "com.moonsworth.lunar.genesis.Genesis",
         "repositoryName": "minecraft-lunar"
     },
     {
-        "modId": "essential",
+        "name": "Essential Mod",
+        "id": "essential",
+        "classPath": "gg.essential.loader.stage0.EssentialSetupPreLaunch",
         "repositoryName": "minecraft-essential"
     }
 ]

@@ -17,8 +17,6 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Set;
-import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,7 +28,7 @@ public class Prometheus implements PreLaunchEntrypoint {
 
     static {
         //overwrite environment logger settings
-        Handler handler = new ConsoleHandler();
+        Handler handler = new StandardOutputHandler();
         handler.setLevel(Level.ALL);
         logger.addHandler(handler);
         logger.setLevel(Level.ALL);
@@ -39,10 +37,11 @@ public class Prometheus implements PreLaunchEntrypoint {
 
     @Override
     public void onPreLaunch() {
-        Set<String> modIds = FabricLoader.getInstance().getAllMods().stream().map(modContainer -> modContainer.getMetadata().getId()).collect(Collectors.toSet());
-
         List<Patch> availablePatches = getAvailablePatches();
-        List<Patch> applicablePatches = availablePatches.stream().filter(patch -> modIds.contains(patch.modId)).collect(Collectors.toList());
+        logger.log(Level.INFO, String.format("Found %d available patches in remote repository", availablePatches.size()));
+
+        List<Patch> applicablePatches = availablePatches.stream().filter(patch -> isClassPresent(patch.classPath)).collect(Collectors.toList());
+        logger.log(Level.INFO, String.format("Found %d applicable patches for %s", applicablePatches.size(), applicablePatches.stream().map(patch -> patch.name).collect(Collectors.joining(", "))));
 
         for (Patch patch : applicablePatches) {
             String url = getLatestReleaseDownloadUrl(patch);
@@ -50,7 +49,16 @@ public class Prometheus implements PreLaunchEntrypoint {
 
             addToClasspath(file);
 
-            Mixins.addConfiguration(String.format("prometheus.%s.mixins.json", patch.modId));
+            Mixins.addConfiguration(String.format("prometheus.%s.mixins.json", patch.id));
+        }
+    }
+
+    public static boolean isClassPresent(String classPath) {
+        try {
+            Class.forName(classPath, false, Thread.currentThread().getContextClassLoader());
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
         }
     }
 
