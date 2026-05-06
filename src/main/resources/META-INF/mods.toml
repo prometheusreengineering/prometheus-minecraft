@@ -8,12 +8,5 @@ version = "${modVersion}"
 displayName = "Prometheus"
 description = "${description}"
 logoFile = "assets/prometheus/icon.png"
-features = { java_version = "[8,)" }
 authors = ["dxxxxy"]
 displayURL = "https://discord.gg/zXFKGhRKZQ"
-
-[[dependencies.${modId}]]
-modId = "minecraft"
-mandatory = true
-versionRange = "[1.13,)"
-side = "CLIENT"
