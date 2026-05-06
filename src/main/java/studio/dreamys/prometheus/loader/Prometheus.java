@@ -38,19 +38,19 @@ public abstract class Prometheus {
         log(String.format("Found %d applicable patches for %s", applicablePatches.size(), applicablePatches.stream().map(patch -> patch.name).collect(Collectors.joining(", "))));
 
         for (Patch patch : applicablePatches) {
-            String url = getLatestReleaseDownloadUrl(patch);
-            Path file = downloadCachedFile(url);
+            String downloadUrl = getLatestReleaseDownloadUrl(patch);
+            Path filePath = downloadCachedFile(downloadUrl);
 
-            patch0(file);
+            patch0(filePath);
         }
     }
 
-    protected void patch0(Path jar) {
-        addToClasspath(jar);
-        addMixinConfigs(jar);
+    protected void patch0(Path jarPath) {
+        addToClasspath(jarPath);
+        addMixinConfigs(jarPath);
     }
 
-    protected boolean isClassPresent(String classPath) {
+    protected boolean isClassPresent(String className) {
         //establish a good list of classloaders to check for the presence of the target class due to environment inconsistencies
         ClassLoader[] loaders = {Thread.currentThread().getContextClassLoader(), getClass().getClassLoader(), ClassLoader.getSystemClassLoader()};
 
@@ -58,7 +58,7 @@ public abstract class Prometheus {
             if (loader == null) continue;
 
             try {
-                Class.forName(classPath, false, loader);
+                Class.forName(className, false, loader);
                 return true;
             } catch (Exception ignored) {}
         }
@@ -66,21 +66,21 @@ public abstract class Prometheus {
         return false;
     }
 
-    protected void addToClasspath(Path jar) {
-        log(String.format("Attempting to add %s to classpath", jar));
-        addToClasspath0(jar);
+    protected void addToClasspath(Path jarPath) {
+        log(String.format("Attempting to add %s to classpath", jarPath));
+        addToClasspath0(jarPath);
     }
 
-    protected abstract void addToClasspath0(Path jar);
+    protected abstract void addToClasspath0(Path jarPath);
 
-    protected void addMixinConfigs(Path jar) {
+    protected void addMixinConfigs(Path jarPath) {
         //add all mixin configs from the jar
-        try (JarFile jarFile = new JarFile(jar.toFile())) {
+        try (JarFile jarFile = new JarFile(jarPath.toFile())) {
             jarFile.stream().map(ZipEntry::getName).filter(name -> name.endsWith(".mixins.json")).forEach(Mixins::addConfiguration);
 
-            log("Successfully added mixin configs from " + jar);
+            log("Successfully added mixin configs from " + jarPath);
         } catch (IOException e) {
-            log("Failed to read mixin configs from " + jar, e);
+            log("Failed to read mixin configs from " + jarPath, e);
             throw new RuntimeException(e);
         }
     }
