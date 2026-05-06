@@ -6,11 +6,12 @@
 
     <groupId>studio.dreamys</groupId>
     <artifactId>prometheus</artifactId>
-    <version>1.0.0-minecraft</version>
+    <version>${modVersion}-minecraft</version>
     <description>The Prometheus' loader for Minecraft.</description>
 
     <properties>
         <modId>prometheus-minecraft</modId>
+        <modVersion>1.0.0</modVersion>
 
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
@@ -87,6 +88,20 @@
             <version>1.12</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/lib/launchwrapper-1.12.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>cpw.mods</groupId>
+            <artifactId>modlauncher</artifactId>
+            <version>10.2.4</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/modlauncher-10.2.4.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>cpw.mods</groupId>
+            <artifactId>securemodules</artifactId>
+            <version>2.2.24</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/securemodules-2.2.24.jar</systemPath>
         </dependency>
     </dependencies>
 

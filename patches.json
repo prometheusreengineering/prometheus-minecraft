@@ -10,8 +10,13 @@
         "repositoryName": "minecraft-essential"
     },
     {
-        "name": "Essential Mod (Forge)",
+        "name": "Essential Mod (Forge Legacy)",
         "classPath": "gg.essential.loader.stage0.EssentialSetupTweaker",
+        "repositoryName": "minecraft-essential"
+    },
+    {
+        "name": "Essential Mod (Forge Modern)",
+        "classPath": "gg.essential.container.loader.stage0.EssentialTransformationService",
         "repositoryName": "minecraft-essential"
     }
 ]
