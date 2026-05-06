@@ -1,4 +1,4 @@
-package studio.dreamys.prometheus;
+package studio.dreamys.prometheus.loader;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -21,8 +21,6 @@ import java.util.zip.ZipEntry;
 public abstract class Prometheus {
     public static final Gson gson = new Gson();
 
-    protected abstract void addToClasspath0(Path jar);
-
     protected void log(String message) {
         System.out.println("[Prometheus] (INFO) " + message);
     }
@@ -43,21 +41,21 @@ public abstract class Prometheus {
             String url = getLatestReleaseDownloadUrl(patch);
             Path file = downloadCachedFile(url);
 
-            addToClasspath(file);
-
-            addMixinConfigs(file);
+            patch0(file);
         }
     }
 
+    protected void patch0(Path jar) {
+        addToClasspath(jar);
+        addMixinConfigs(jar);
+    }
+
     protected boolean isClassPresent(String classPath) {
+        //establish a good list of classloaders to check for the presence of the target class due to environment inconsistencies
         ClassLoader[] loaders = {Thread.currentThread().getContextClassLoader(), getClass().getClassLoader(), ClassLoader.getSystemClassLoader()};
 
         for (ClassLoader loader : loaders) {
             if (loader == null) continue;
-
-            if (loader.getResource(classPath.replace('.', '/') + ".class") != null) {
-                return true;
-            }
 
             try {
                 Class.forName(classPath, false, loader);
@@ -73,7 +71,10 @@ public abstract class Prometheus {
         addToClasspath0(jar);
     }
 
+    protected abstract void addToClasspath0(Path jar);
+
     protected void addMixinConfigs(Path jar) {
+        //add all mixin configs from the jar
         try (JarFile jarFile = new JarFile(jar.toFile())) {
             jarFile.stream().map(ZipEntry::getName).filter(name -> name.endsWith(".mixins.json")).forEach(Mixins::addConfiguration);
 
@@ -114,6 +115,7 @@ public abstract class Prometheus {
 
             String fileName = url.substring(url.lastIndexOf("/") + 1);
             Path filePath = cacheDir.resolve(fileName);
+
             if (Files.exists(filePath)) {
                 log(String.format("File %s already exists in cache, skipping download", fileName));
                 return filePath;

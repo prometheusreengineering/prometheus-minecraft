@@ -1,4 +1,4 @@
-package studio.dreamys.prometheus;
+package studio.dreamys.prometheus.loader;
 
 public class Patch {
     public String name;
