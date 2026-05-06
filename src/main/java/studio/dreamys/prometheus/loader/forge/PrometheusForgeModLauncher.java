@@ -21,15 +21,15 @@ public class PrometheusForgeModLauncher extends Prometheus implements ITransform
     private List<Resource> resources = new ArrayList<>();
 
     @Override
-    protected void patch0(Path jar) {
-        //remove addMixinConfigs(jar); and call it delayed after jars are visible on classpath
-        addToClasspath(jar);
+    protected void patch0(Path jarPath) {
+        //we don't need to add mixins manually due to the environment hacking we do
+        addToClasspath(jarPath);
     }
 
     @Override
-    protected void addToClasspath0(Path jar) {
+    protected void addToClasspath0(Path jarPath) {
         //inject jar into classpath (will be permanently visible after mixin stage)
-        resources.add(new Resource(IModuleLayerManager.Layer.GAME, Collections.singletonList(SecureJar.from(jar))));
+        resources.add(new Resource(IModuleLayerManager.Layer.GAME, Collections.singletonList(SecureJar.from(jarPath))));
     }
 
     @Override
@@ -52,10 +52,11 @@ public class PrometheusForgeModLauncher extends Prometheus implements ITransform
         try {
             //extend classpath with injected jars (will be temporarily visible before and during mixin stage)
             URLClassLoader urlClassLoader = new URLClassLoader(resources.stream().map(resource -> {
+                Path jarPath = resource.resources().getFirst().getPrimaryPath();
                 try {
-                    return resource.resources().getFirst().getPrimaryPath().toUri().toURL();
+                    return jarPath.toUri().toURL();
                 } catch (MalformedURLException e) {
-                    log("Failed to convert patch path to URL", e);
+                    log(String.format("Failed to convert %s to URL", jarPath), e);
                     throw new RuntimeException(e);
                 }
             }).toArray(URL[]::new), backupClassLoader);
@@ -63,15 +64,10 @@ public class PrometheusForgeModLauncher extends Prometheus implements ITransform
 
             //expose the mixin environment to this new classloader/classpath so that mixins can be loaded
             MixinEnvironment.getDefaultEnvironment();
-
-            //load mixin configs from the added jars
-            for (Resource resource : resources) {
-                Path jar = resource.resources().getFirst().getPrimaryPath();
-                addMixinConfigs(jar);
-            }
         } catch (Exception e) {
-            log("Failed to load mixin config", e);
-            throw new RuntimeException(e);
+            log("Exception was thrown during MixinEnvironment hacking. " +
+                    "If the issue is: 'Environment conflict, mismatched versions or you didn't call MixinBootstrap.init()', you can ignore it. " +
+                    "It is not fatal and is a side effect of the environment hacking.", e);
         } finally {
             //restore original classloader
             Thread.currentThread().setContextClassLoader(backupClassLoader);
