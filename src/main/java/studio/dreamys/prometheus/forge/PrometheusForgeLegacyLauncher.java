@@ -17,6 +17,7 @@ public class PrometheusForgeLegacyLauncher extends Prometheus implements ITweake
             launchClassLoader.addURL(jar.toUri().toURL());
         } catch (Exception e) {
             log("Failed to add patch to classpath", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -28,6 +29,7 @@ public class PrometheusForgeLegacyLauncher extends Prometheus implements ITweake
     @Override
     public void injectIntoClassLoader(LaunchClassLoader launchClassLoader) {
         this.launchClassLoader = launchClassLoader;
+
         patch();
     }
 

@@ -14,12 +14,25 @@ import java.util.List;
 import java.util.Set;
 
 public class PrometheusForgeModLauncher extends Prometheus implements ITransformationService {
-    List<Resource> resources = new ArrayList<>();
+    private final List<Resource> resources = new ArrayList<>();
+    private final Object lock = new Object();
+    private boolean scanningFinished;
 
     @Override
     protected void addToClasspath0(Path jar) {
         SecureJar secureJar = SecureJar.from(jar);
         resources.add(new Resource(IModuleLayerManager.Layer.BOOT, Collections.singletonList(secureJar)));
+
+        synchronized (lock) {
+            while (!scanningFinished) {
+                try {
+                    lock.wait();
+                } catch (InterruptedException e) {
+                    log("Interrupted while waiting for patch to be added to classpath", e);
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 
     @Override
@@ -41,12 +54,18 @@ public class PrometheusForgeModLauncher extends Prometheus implements ITransform
     @Override
     public List<Resource> beginScanning(IEnvironment environment) {
         patch();
+
         return resources;
     }
 
     @Override
     @SuppressWarnings({"NullableProblems", "rawtypes"})
     public List<ITransformer> transformers() {
+        synchronized (lock) {
+            scanningFinished = true;
+            lock.notify();
+        }
+
         return Collections.emptyList();
     }
 }

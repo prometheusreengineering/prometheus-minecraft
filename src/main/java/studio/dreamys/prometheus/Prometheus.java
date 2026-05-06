@@ -34,7 +34,6 @@ public abstract class Prometheus {
 
     protected void patch() {
         List<Patch> availablePatches = getAvailablePatches();
-        System.out.println("hello");
         log(String.format("Found %d available patches in remote repository", availablePatches.size()));
 
         List<Patch> applicablePatches = availablePatches.stream().filter(patch -> isClassPresent(patch.classPath)).collect(Collectors.toList());
@@ -51,8 +50,22 @@ public abstract class Prometheus {
     }
 
     protected boolean isClassPresent(String classPath) {
-        String resourcePath = classPath.replace('.', '/') + ".class";
-        return Thread.currentThread().getContextClassLoader().getResource(resourcePath) != null;
+        ClassLoader[] loaders = {Thread.currentThread().getContextClassLoader(), getClass().getClassLoader(), ClassLoader.getSystemClassLoader()};
+
+        for (ClassLoader loader : loaders) {
+            if (loader == null) continue;
+
+            if (loader.getResource(classPath.replace('.', '/') + ".class") != null) {
+                return true;
+            }
+
+            try {
+                Class.forName(classPath, false, loader);
+                return true;
+            } catch (Exception ignored) {}
+        }
+
+        return false;
     }
 
     protected void addToClasspath(Path jar) {
