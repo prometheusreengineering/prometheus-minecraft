@@ -16,7 +16,7 @@
     },
     {
         "name": "Essential Mod (Forge Modern)",
-        "classPath": "gg.essential.container.loader.stage0.EssentialTransformationService",
+        "classPath": "gg.essential.loader.stage2.EssentialLoaderBase",
         "repositoryName": "minecraft-essential"
     }
 ]
