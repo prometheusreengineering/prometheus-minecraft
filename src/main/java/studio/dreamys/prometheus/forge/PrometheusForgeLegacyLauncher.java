@@ -21,16 +21,6 @@ public class PrometheusForgeLegacyLauncher extends Prometheus implements ITweake
     }
 
     @Override
-    protected boolean isClassPresent(String classPath) {
-        try {
-            Class.forName(classPath, false, launchClassLoader);
-            return true;
-        } catch (Throwable t) {
-            return false;
-        }
-    }
-
-    @Override
     public void acceptOptions(List<String> list, File file, File file1, String s) {
 
     }
