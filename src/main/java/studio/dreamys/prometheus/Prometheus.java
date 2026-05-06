@@ -51,12 +51,8 @@ public abstract class Prometheus {
     }
 
     protected boolean isClassPresent(String classPath) {
-        try {
-            Class.forName(classPath, false, Thread.currentThread().getContextClassLoader());
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
+        String resourcePath = classPath.replace('.', '/') + ".class";
+        return Thread.currentThread().getContextClassLoader().getResource(resourcePath) != null;
     }
 
     protected void addToClasspath(Path jar) {
