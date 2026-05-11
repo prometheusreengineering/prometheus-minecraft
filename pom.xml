@@ -23,6 +23,18 @@
             <id>spongepowered-repo</id>
             <url>https://repo.spongepowered.org/maven/</url>
         </repository>
+        <repository>
+            <id>glaremasters</id>
+            <url>https://repo.glaremasters.me/repository/public/</url>
+        </repository>
+        <repository>
+            <id>carm</id>
+            <url>https://repo.carm.cc/repository/maven-public/</url>
+        </repository>
+        <repository>
+            <id>prometheusreengineering</id>
+            <url>https://maven.pkg.github.com/prometheusreengineering/maven/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -86,22 +98,19 @@
             <groupId>net.minecraft</groupId>
             <artifactId>launchwrapper</artifactId>
             <version>1.12</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/launchwrapper-1.12.jar</systemPath>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>cpw.mods</groupId>
             <artifactId>modlauncher</artifactId>
             <version>10.2.4</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/modlauncher-10.2.4.jar</systemPath>
+            <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>cpw.mods</groupId>
+            <groupId>net.minecraftforge</groupId>
             <artifactId>securemodules</artifactId>
             <version>2.2.24</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/securemodules-2.2.24.jar</systemPath>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
