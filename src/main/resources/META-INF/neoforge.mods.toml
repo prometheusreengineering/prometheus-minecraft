@@ -1,6 +1,6 @@
 modLoader = "lowcodefml"
-loaderVersion = "[25,)"
-license = "GPL-3.0"
+license = "GPL-3.0-only"
+issueTrackerURL = "https://github.com/prometheusreengineering/prometheus-minecraft"
 
 [[mods]]
 modId = "${modId}"
@@ -8,5 +8,6 @@ version = "${modVersion}"
 displayName = "Prometheus"
 description = "${description}"
 logoFile = "assets/prometheus/icon.png"
-authors = ["dxxxxy","Cootshk"]
+logoBlur = false
+authors = ["dxxxxy", "Cootshk"]
 displayURL = "https://discord.gg/zXFKGhRKZQ"

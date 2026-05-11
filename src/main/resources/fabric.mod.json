@@ -6,7 +6,8 @@
     "name": "Prometheus",
     "description": "${description}",
     "authors": [
-        "dxxxxy"
+        "dxxxxy",
+        "Cootshk"
     ],
     "license": "GPL-3.0",
     "contact": {

@@ -5,7 +5,8 @@
         "description": "${description}",
         "version": "${version}",
         "authorList": [
-            "dxxxxy"
+            "dxxxxy",
+            "Cootshk"
         ],
         "url": "https://discord.gg/zXFKGhRKZQ",
         "logoFile": "assets/prometheus/icon.png"
