@@ -31,10 +31,6 @@
             <id>carm</id>
             <url>https://repo.carm.cc/repository/maven-public/</url>
         </repository>
-        <repository>
-            <id>prometheusreengineering</id>
-            <url>https://maven.pkg.github.com/prometheusreengineering/maven/</url>
-        </repository>
     </repositories>
 
     <dependencies>
@@ -101,7 +97,7 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>cpw.mods</groupId>
+            <groupId>net.minecraftforge</groupId>
             <artifactId>modlauncher</artifactId>
             <version>10.2.4</version>
             <scope>provided</scope>
