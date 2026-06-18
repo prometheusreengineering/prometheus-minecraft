@@ -2,7 +2,7 @@
 The Prometheus' loader for Minecraft.
 
 ![Compatibility: Infinite](https://img.shields.io/badge/COMPATIBILITY-<=1.12_>=1.18-0?style=for-the-badge)
-[![Download Count](https://img.shields.io/github/downloads/prometheusreengineering/prometheus-minecraft/total?style=for-the-badge)](https://github.com/prometheusreengineering/essential/releases/)
+[![Download Count](https://img.shields.io/github/downloads/prometheusreengineering/prometheus-minecraft/total?style=for-the-badge)](https://github.com/prometheusreengineering/prometheus-minecraft/releases/)
 [![Discord](https://img.shields.io/discord/1197794960985043034?style=for-the-badge&label=Discord&color=rgb(88%2C%20101%2C%20242)%20)](https://discord.gg/BFDWmPfmXg)
 
 ## Features
