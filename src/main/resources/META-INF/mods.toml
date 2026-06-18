@@ -1,6 +1,8 @@
 modLoader = "lowcodefml"
-loaderVersion = "[25,)"
-license = "GPL-3.0"
+loaderVersion = "[40,)" # lowcodefml is only available from 1.18.2 (40) onwards
+license = "GPL-3.0-only"
+clientSideOnly = true
+issueTrackerURL = "https://github.com/prometheusreengineering/prometheus-minecraft/issues"
 
 [[mods]]
 modId = "${modId}"
@@ -8,5 +10,6 @@ version = "${modVersion}"
 displayName = "Prometheus"
 description = "${description}"
 logoFile = "assets/prometheus/icon.png"
+logoBlur = false
 authors = ["dxxxxy","Cootshk"]
 displayURL = "https://discord.gg/zXFKGhRKZQ"

@@ -9,8 +9,9 @@
         "dxxxxy",
         "Cootshk"
     ],
-    "license": "GPL-3.0",
+    "license": "GPL-3.0-only",
     "contact": {
+        "issues": "https://github.com/prometheusreengineering/prometheus-minecraft/issues",
         "discord": "https://discord.gg/zXFKGhRKZQ"
     },
     "icon": "assets/prometheus/icon.png",

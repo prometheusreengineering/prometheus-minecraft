@@ -1,6 +1,7 @@
 modLoader = "lowcodefml"
+loaderVersion = "[1,)" # lowcodefml is always available
 license = "GPL-3.0-only"
-issueTrackerURL = "https://github.com/prometheusreengineering/prometheus-minecraft"
+issueTrackerURL = "https://github.com/prometheusreengineering/prometheus-minecraft/issues"
 
 [[mods]]
 modId = "${modId}"
