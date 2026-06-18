@@ -20,6 +20,16 @@ import java.util.Set;
 
 public class PrometheusForgeModLauncher extends Prometheus implements ITransformationService {
     private List<Resource> resources = new ArrayList<>();
+    private static boolean modern = true;
+
+    static {
+        //detect if we are running modern forge (1.21+) from java version (21+)
+        try {
+            List.class.getMethod("getFirst");
+        } catch (NoSuchMethodException e) {
+            modern = false;
+        }
+    }
 
     @Override
     protected void patch0(Path jarPath) {
@@ -29,8 +39,8 @@ public class PrometheusForgeModLauncher extends Prometheus implements ITransform
 
     @Override
     protected void addToClasspath0(Path jarPath) {
-        //inject jar into classpath (Layer.PLUGIN is not filtered by FML)
-        resources.add(new Resource(IModuleLayerManager.Layer.PLUGIN, Collections.singletonList(SecureJar.from(jarPath))));
+        //inject jar into classpath (will be permanently visible after mixin stage)
+        resources.add(new Resource(modern ? IModuleLayerManager.Layer.GAME : IModuleLayerManager.Layer.PLUGIN, Collections.singletonList(SecureJar.from(jarPath))));
     }
 
     @Override
@@ -51,7 +61,7 @@ public class PrometheusForgeModLauncher extends Prometheus implements ITransform
         //backup original classloader
         ClassLoader backupClassLoader = Thread.currentThread().getContextClassLoader();
         try {
-            //extend classpath with injected jars so that mixin can read the mixins.json file out of it
+            //extend classpath with injected jars (will be temporarily visible before and during mixin stage)
             URLClassLoader urlClassLoader = new URLClassLoader(resources.stream().map(resource -> {
                 Path jarPath = resource.resources().get(0).getPrimaryPath();
                 try {
@@ -63,19 +73,24 @@ public class PrometheusForgeModLauncher extends Prometheus implements ITransform
             }).toArray(URL[]::new), backupClassLoader);
             Thread.currentThread().setContextClassLoader(urlClassLoader);
 
-            try {
+            if (modern) { // >=1.21 apparently bootstrap is init strictly as modlauncher service. if we call it -> crash.
                 //expose the mixin environment to this new classloader/classpath so that mixins can be loaded
-                MixinBootstrap.init();
                 MixinEnvironment.getDefaultEnvironment();
-            } catch (Exception ignored) {} //can throw non-fatal issue if another mod initialized it, no biggie
+            } else { // <1.21
+                try {
+                    //expose the mixin environment to this new classloader/classpath so that mixins can be loaded
+                    MixinBootstrap.init();
+                    MixinEnvironment.getDefaultEnvironment();
+                } catch (Exception ignored) {} //can throw non-fatal issue if another mod initialized it, no biggie
 
-            //load mixin configs from the added jars while the URLClassLoader is still context
-            for (Resource resource : resources) {
-                Path jar = resource.resources().get(0).getPrimaryPath();
-                addMixinConfigs(jar);
+                //load mixin configs from the added jars while the URLClassLoader is still context
+                for (Resource resource : resources) {
+                    Path jar = resource.resources().get(0).getPrimaryPath();
+                    addMixinConfigs(jar);
+                }
             }
         } catch (Exception e) {
-            log("Exception was thrown during Mixin configuration loading", e);
+            log("Exception was thrown during MixinEnvironment hacking. " + "If the issue is: 'Environment conflict, mismatched versions or you didn't call MixinBootstrap.init()', you can ignore it. " + "It is not fatal and is a side effect of the environment hacking.", e);
         } finally {
             //restore original classloader
             Thread.currentThread().setContextClassLoader(backupClassLoader);
