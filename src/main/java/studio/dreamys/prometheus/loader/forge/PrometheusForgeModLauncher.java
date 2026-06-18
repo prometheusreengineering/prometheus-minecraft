@@ -5,6 +5,7 @@ import cpw.mods.modlauncher.api.IEnvironment;
 import cpw.mods.modlauncher.api.IModuleLayerManager;
 import cpw.mods.modlauncher.api.ITransformationService;
 import cpw.mods.modlauncher.api.ITransformer;
+import org.spongepowered.asm.launch.MixinBootstrap;
 import org.spongepowered.asm.mixin.MixinEnvironment;
 import studio.dreamys.prometheus.loader.Prometheus;
 
@@ -22,14 +23,14 @@ public class PrometheusForgeModLauncher extends Prometheus implements ITransform
 
     @Override
     protected void patch0(Path jarPath) {
-        //we don't need to add mixins manually due to the environment hacking we do
         addToClasspath(jarPath);
+        //add mixins later
     }
 
     @Override
     protected void addToClasspath0(Path jarPath) {
-        //inject jar into classpath (will be permanently visible after mixin stage)
-        resources.add(new Resource(IModuleLayerManager.Layer.GAME, Collections.singletonList(SecureJar.from(jarPath))));
+        //inject jar into classpath (Layer.PLUGIN is not filtered by FML)
+        resources.add(new Resource(IModuleLayerManager.Layer.PLUGIN, Collections.singletonList(SecureJar.from(jarPath))));
     }
 
     @Override
@@ -50,9 +51,9 @@ public class PrometheusForgeModLauncher extends Prometheus implements ITransform
         //backup original classloader
         ClassLoader backupClassLoader = Thread.currentThread().getContextClassLoader();
         try {
-            //extend classpath with injected jars (will be temporarily visible before and during mixin stage)
+            //extend classpath with injected jars so that mixin can read the mixins.json file out of it
             URLClassLoader urlClassLoader = new URLClassLoader(resources.stream().map(resource -> {
-                Path jarPath = resource.resources().getFirst().getPrimaryPath();
+                Path jarPath = resource.resources().get(0).getPrimaryPath();
                 try {
                     return jarPath.toUri().toURL();
                 } catch (MalformedURLException e) {
@@ -62,12 +63,19 @@ public class PrometheusForgeModLauncher extends Prometheus implements ITransform
             }).toArray(URL[]::new), backupClassLoader);
             Thread.currentThread().setContextClassLoader(urlClassLoader);
 
-            //expose the mixin environment to this new classloader/classpath so that mixins can be loaded
-            MixinEnvironment.getDefaultEnvironment();
+            try {
+                //expose the mixin environment to this new classloader/classpath so that mixins can be loaded
+                MixinBootstrap.init();
+                MixinEnvironment.getDefaultEnvironment();
+            } catch (Exception ignored) {} //can throw non-fatal issue if another mod initialized it, no biggie
+
+            //load mixin configs from the added jars while the URLClassLoader is still context
+            for (Resource resource : resources) {
+                Path jar = resource.resources().get(0).getPrimaryPath();
+                addMixinConfigs(jar);
+            }
         } catch (Exception e) {
-            log("Exception was thrown during MixinEnvironment hacking. " +
-                    "If the issue is: 'Environment conflict, mismatched versions or you didn't call MixinBootstrap.init()', you can ignore it. " +
-                    "It is not fatal and is a side effect of the environment hacking.", e);
+            log("Exception was thrown during Mixin configuration loading", e);
         } finally {
             //restore original classloader
             Thread.currentThread().setContextClassLoader(backupClassLoader);
