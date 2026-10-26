@@ -7,6 +7,7 @@ import org.spongepowered.asm.launch.MixinBootstrap;
 import org.spongepowered.asm.mixin.MixinEnvironment;
 import org.spongepowered.asm.mixin.Mixins;
 import studio.dreamys.prometheus.stage0.Stage0;
+import studio.dreamys.prometheus.stage0.Stage0Log;
 
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -17,7 +18,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Forge 1.14+ and NeoForge up to 1.21.1: one {@code ITransformationService} for every ModLauncher version.
@@ -34,6 +38,7 @@ public class ModLauncherHook extends LegacyBase {
     private final List<Path> jars = new ArrayList<>();
     private final List<String> mixinConfigs = new ArrayList<>();
     private boolean active;
+    private LegacyLocator legacyLocator;
 
     @Override
     public String name() {
@@ -78,7 +83,7 @@ public class ModLauncherHook extends LegacyBase {
         } catch (Throwable t) {
             // "Environment conflict, mismatched versions or you didn't call MixinBootstrap.init()" is a known,
             // harmless side effect of this
-            System.out.println("[Prometheus/stage0] (WARN) Mixin environment setup threw: " + t);
+            Stage0Log.warn("Mixin environment setup threw: %s", t);
         } finally {
             Thread.currentThread().setContextClassLoader(backup);
         }
@@ -91,13 +96,31 @@ public class ModLauncherHook extends LegacyBase {
         return ModernResources.of(jars, MODERN);
     }
 
-    /** ModLauncher 4-8, through {@link LegacyBase#runScan}. */
+    /**
+     * ModLauncher 4-8, through {@link LegacyBase#runScan}. This only shows the jars to launch plugins (Mixin finds
+     * their configs here); {@link #additionalClassesLocator} is what puts them in the game's class loader.
+     */
     @Override
     protected List<Map.Entry<String, Path>> legacyScan() {
         List<Map.Entry<String, Path>> entries = new ArrayList<>();
         if (!active) return entries;
         for (Path jar : jars) entries.add(new AbstractMap.SimpleImmutableEntry<>(jar.getFileName().toString(), jar));
+        if (!jars.isEmpty()) legacyLocator = new LegacyLocator(jars);
         return entries;
+    }
+
+    /*
+     * ModLauncher 4-10 ask for these when they build the game's class loader, after the scan. Only JDK types, so they
+     * need no LegacyBase trick. ModLauncher 9-10 also ask, but there the jars are already GAME-layer resources, so
+     * this only answers when runScan ran (4-8). Not @Override: NeoForge's ModLauncher doesn't have them.
+     */
+
+    public Map.Entry<Set<String>, Supplier<Function<String, Optional<URL>>>> additionalClassesLocator() {
+        return legacyLocator == null ? null : legacyLocator.classes();
+    }
+
+    public Map.Entry<Set<String>, Supplier<Function<String, Optional<URL>>>> additionalResourcesLocator() {
+        return legacyLocator == null ? null : legacyLocator.resources();
     }
 
     @Override

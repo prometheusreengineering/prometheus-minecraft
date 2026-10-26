@@ -17,21 +17,21 @@ import java.util.Locale;
  * {@code loader.log} with minecraft-lib's {@code Log}; this is only what happens before (or instead of) it.
  * Never throws.
  */
-final class Stage0Log {
+public final class Stage0Log {
     private Stage0Log() {}
 
     /** A system property, so the two hooks NeoForge 1.21.1 loads with different class loaders share one file. */
     private static final String STARTED = "prometheus.stage0.log.started";
 
-    static void info(String format, Object... args) {
+    public static void info(String format, Object... args) {
         write("INFO", format(format, args), null);
     }
 
-    static void warn(String format, Object... args) {
+    public static void warn(String format, Object... args) {
         write("WARN", format(format, args), null);
     }
 
-    static void error(String message, Throwable t) {
+    public static void error(String message, Throwable t) {
         write("ERROR", message, t);
     }
 
