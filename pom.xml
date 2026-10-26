@@ -18,6 +18,7 @@
     -->
     <modules>
         <module>stage0-legacy</module>
+        <module>stage0</module>
         <module>core</module>
     </modules>
 
