@@ -5,14 +5,26 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>studio.dreamys</groupId>
-    <artifactId>prometheus</artifactId>
-    <version>${modVersion}-minecraft</version>
+    <artifactId>prometheus-parent</artifactId>
+    <!-- also in every module's <parent>, and modVersion below -->
+    <version>2.0.0</version>
+    <packaging>pom</packaging>
     <description>The Prometheus' loader for Minecraft.</description>
+
+    <!--
+        stage0-legacy: the ModLauncher 2-8 half of the transformation service (see stage0's ModLauncherHook)
+        stage0:        the jar users install. JDK only, rarely changes. Downloads and starts the core.
+        core:          the loader logic + minecraft-lib. Auto-updated from GitHub releases.
+    -->
+    <modules>
+        <module>core</module>
+    </modules>
 
     <properties>
         <modId>prometheus-minecraft</modId>
-        <modVersion>1.0.0</modVersion>
+        <modVersion>2.0.0</modVersion>
 
+        <!-- -source/-target, not release: the hook APIs we compile against are newer class files than Java 8 -->
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -24,6 +36,18 @@
             <url>https://repo.spongepowered.org/maven/</url>
         </repository>
         <repository>
+            <id>minecraftforge</id>
+            <url>https://maven.minecraftforge.net/</url>
+        </repository>
+        <repository>
+            <id>neoforged</id>
+            <url>https://maven.neoforged.net/releases/</url>
+        </repository>
+        <repository>
+            <id>fabricmc</id>
+            <url>https://maven.fabricmc.net/</url>
+        </repository>
+        <repository>
             <id>glaremasters</id>
             <url>https://repo.glaremasters.me/repository/public/</url>
         </repository>
@@ -33,99 +57,39 @@
         </repository>
     </repositories>
 
-    <dependencies>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>33.4.0-jre</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <version>2.14.0</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.spongepowered</groupId>
-            <artifactId>mixin</artifactId>
-            <version>0.8.7</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm</artifactId>
-            <version>9.7.1</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm-analysis</artifactId>
-            <version>9.7.1</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm-commons</artifactId>
-            <version>9.7.1</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm-tree</artifactId>
-            <version>9.7.1</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm-util</artifactId>
-            <version>9.7.1</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>net.fabricmc</groupId>
-            <artifactId>fabric-loader</artifactId>
-            <version>0.16.14</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.minecraft</groupId>
-            <artifactId>launchwrapper</artifactId>
-            <version>1.12</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.minecraftforge</groupId>
-            <artifactId>modlauncher</artifactId>
-            <version>10.2.4</version>
-            <scope>provided</scope>
-        </dependency>
-    </dependencies>
-
     <build>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-            </resource>
-        </resources>
-
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <configuration>
-                    <archive>
-                        <addMavenDescriptor>false</addMavenDescriptor>
-                        <manifest>
-                            <addDefaultEntries>false</addDefaultEntries>
-                        </manifest>
-                        <manifestFile>src/main/resources/META-INF/MANIFEST.MF</manifestFile>
-                    </archive>
-                </configuration>
-            </plugin>
-        </plugins>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                    <configuration>
+                        <!-- Mixin's jar ships its annotation processor, which crashes javac without Gson. Nothing here has mixins. -->
+                        <proc>none</proc>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.4.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>3.8.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>3.6.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.3.1</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
     </build>
 </project>
