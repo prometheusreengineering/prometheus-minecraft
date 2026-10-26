@@ -17,6 +17,7 @@
         core:          the loader logic + minecraft-lib. Auto-updated from GitHub releases.
     -->
     <modules>
+        <module>stage0-legacy</module>
         <module>core</module>
     </modules>
 
