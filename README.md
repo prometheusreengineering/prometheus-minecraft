@@ -71,6 +71,8 @@ Use JDK 21+. Everything still targets Java 8, but the platform APIs we compile a
 1. `mvn install` in [minecraft-lib](https://github.com/prometheusreengineering/minecraft-lib). The core includes it.
 2. `mvn package` in this repo's root (`prometheus-parent`), not in `stage0/`: stage0 needs the `stage0-legacy` module built in the same run. To build only stage0, use `mvn -pl stage0 -am package`. This builds `stage0/target/prometheus-<version>-minecraft.jar` and `core/target/prometheus-core-<version>.jar`.
 
+The tests run as part of `package`, and never need the network. `mvn verify` also checks coverage: each module's report is in `target/site/jacoco/index.html`.
+
 ## Releasing
 Attach **both** jars to a GitHub release. Stage 0 picks the newest `prometheus-core-*.jar` asset of the latest release and checks it against the SHA-256 GitHub publishes for it. Users only need a new stage0 jar if stage 0 itself changed.
 

@@ -140,7 +140,37 @@ the processor path.
 
 ## Testing
 
-There are no automated tests in the repo yet. What has been used:
+JUnit 5 in each module's `src/test/java`, run by `mvn test` (and so by `mvn package`). They never touch the network.
+
+- **Coverage (JaCoCo):** each module's report is `target/site/jacoco/index.html`, and `mvn verify` fails below the
+  minimum.
+  - The minimum is 100% of lines and branches for `core` and `stage0-legacy`.
+  - `stage0` is lower: the hooks' Mixin calls (`Mixins.addConfiguration`, `MixinBootstrap.init`,
+    `MixinEnvironment.getDefaultEnvironment`) only work inside a running game. Everything else is covered.
+  - Keep it that way: every new line gets a test.
+- **Package-private seams:** a path a test can't reach on its own gets one, and the public behavior stays the same.
+  - `ModLauncherHook.modern`
+  - `CoreResolver.moveIntoPlace(.., Mover)` and `digest(String)`
+  - `LegacyLocator.unclaimed(.., owner, field)` and `url(String)`
+  - `LaunchWrapperHook.url(URI)`
+  - `Stage0.version(InputStream)` and `Bootstrap.version(InputStream)`
+  - the file helpers in `CoreResolver` and `ReleaseResolver`
+- **`FakeGitHub`:** the releases API, asset downloads (whole, chunked and cut short) and `patches.json` on the
+  loopback address. Each module has its own copy.
+- **Stage 0's fake core:** `stage0/src/test/java/studio/dreamys/prometheus/core/Bootstrap.java`.
+  - `TestSupport.fakeCore` jars it, and points `core.path` at that jar.
+  - It loads in stage 0's child-first class loader, so tests drive it through `test.bootstrap.*` system properties.
+- **Test folders:** tests that load a jar (stage 0 never closes the core's class loader) or write `loader.log` use
+  `TestSupport.folder()` under `target/test-folders`, not `@TempDir`, because Windows won't delete a file that's
+  still open.
+- **The platform hooks are tested against the real platform jars:**
+  - a `LaunchClassLoader`
+  - Fabric's `FabricLoaderImpl` and launcher, set by reflection
+  - NeoForge's interfaces as JDK proxies
+- **Test-only dependencies:** minecraft-lib (for `Env`, to set environment variables) and SLF4J (which NeoForge's
+  classes need).
+
+Beyond the tests:
 
 - **In game:**
   - Put only the stage 0 jar in `mods/`, and start with
@@ -148,12 +178,9 @@ There are no automated tests in the repo yet. What has been used:
   - Check `stage0.log` for which hook fired and `loader.log` for `N applicable patches` and `<patch>: loaded`.
   - Record the result in the README's **Compatibility** tables.
 - **ModLauncher internals:** the ModLauncher jars are on Maven (`cpw.mods:modlauncher`,
-  `net.minecraftforge:modlauncher`, `net.neoforged.fancymodloader:loader`). Their classes can be read with `javap`,
-  and a small harness can instantiate `ModLauncherHook` and call into ModLauncher's own code. That's how
-  `LegacyLocator` was checked against `TransformationServiceDecorator`.
-- **Download and cache logic:** a fake GitHub on loopback (`-Dprometheus.github.api=http://127.0.0.1:<port>`,
-  `-Dprometheus.folder=<temp>`) covered first launch, relaunch within the interval, offline, a tampered cache, a wrong
-  digest, GitHub down, and a release without a core.
+  `net.minecraftforge:modlauncher`, `net.neoforged.fancymodloader:loader`). Their classes can be read with `javap`.
+  The tests compile against ModLauncher 10, so checking something against an older ModLauncher's own code (like
+  `LegacyLocator` against 8's `TransformationServiceDecorator`) needs a small harness run with that version.
 
 ## Releasing
 
