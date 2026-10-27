@@ -130,7 +130,7 @@ public class ModLauncherHook extends LegacyBase {
         return legacyLocator == null ? null : legacyLocator.resources();
     }
 
-    @SuppressWarnings("rawtypes") //weird java not seeing @NotNull
+    @SuppressWarnings("rawtypes")
     @Override
     public @NotNull List<ITransformer> transformers() {
         return Collections.emptyList();
