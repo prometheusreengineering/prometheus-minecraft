@@ -1,12 +1,14 @@
 # prometheus-minecraft
 
 The Prometheus loader for Minecraft. It finds which patches apply to the running game, downloads them from GitHub
-releases and loads them. Each patch is a repo of its own (`minecraft-lunar`, `minecraft-essential`, ...), listed in
-`patches.json`.
+releases and loads them. Each patch is a repo of its own ([minecraft-lunar](https://github.com/prometheusreengineering/minecraft-lunar),
+[minecraft-essential](https://github.com/prometheusreengineering/minecraft-essential), ...), listed in `patches.json`.
 
-Shared code lives in [minecraft-lib](https://github.com/prometheusreengineering/minecraft-lib) (`../minecraft-lib`,
-package `ing.prometheusreengineer.minecraft`). Its `CLAUDE.md` has the rules for the lib itself: logging,
-`Settings`, the provided-dependency versions.
+Shared code lives in [minecraft-lib](https://github.com/prometheusreengineering/minecraft-lib) (package
+`ing.prometheusreengineer.minecraft`). Its `CLAUDE.md` has the rules for the lib itself: logging, `Settings`, the
+provided-dependency versions.
+
+Where this is going, why, and what's left: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Architecture
 
@@ -117,7 +119,8 @@ GitHub release of each patch repo: the patch jar
 There may be no `mvn` on the PATH. IntelliJ's bundled Maven works:
 `%APPDATA%/JetBrains/IntelliJIdea<version>/plugins/maven-plugin/lib/maven3/bin/mvn`.
 
-1. `mvn install` in `../minecraft-lib` first. The core depends on `minecraft-lib` `1.0.0`.
+1. Clone [minecraft-lib](https://github.com/prometheusreengineering/minecraft-lib) and run `mvn install` in it
+   first. The core depends on `minecraft-lib` `1.0.0`, which isn't published to a Maven repo, only to `~/.m2`.
 2. `mvn package` in **this repo's root** (`prometheus-parent`). Running it in `stage0/` alone fails, because Maven
    then can't see `stage0-legacy`. To build only stage 0: `mvn -pl stage0 -am package`.
 
@@ -162,7 +165,8 @@ release. Users only need a new stage 0 jar when stage 0 itself changed.
 - Commits: `type: message` (`feat:`, `fix:`, `build:`, `docs:`, `chore:`), small, and each one builds on its own.
 - Short lowercase `//` comments that explain why. Javadoc on classes and non-obvious methods, including which
   platform versions something was checked on.
-- `org.jetbrains.annotations` (`@NotNull`, `@Nullable`) in the core. Stage 0 has no dependencies, so it has none.
+- `org.jetbrains.annotations` (`@NotNull`, `@Nullable`). In stage 0 it's `provided`: the annotations only exist at
+  compile time, so the stage 0 jar still needs nothing but the JDK.
 - Utility classes are `final` with a private constructor.
 
 ## Known gaps
@@ -172,4 +176,4 @@ release. Users only need a new stage 0 jar when stage 0 itself changed.
 - Dawn isn't in `patches.json`. It needs its jsonproxy and Kotlin dependencies bundled first, and a check that
   `preLaunch` is early enough for it.
 - The NeoForge locator path (FML 11+) has only been checked in game without a patch.
-- Plan: `~/.claude/plans/okay-im-thinking-of-goofy-fern.md`.
+- The full list, and the reasoning behind the design: [docs/ROADMAP.md](docs/ROADMAP.md).
