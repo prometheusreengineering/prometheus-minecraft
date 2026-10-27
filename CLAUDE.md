@@ -41,7 +41,7 @@ GitHub release of each patch repo: the patch jar
 | `stage0/` | `prometheus` → `prometheus-<version>-minecraft.jar` | The jar users install. The platform hooks, `CoreResolver`, and copies of `Settings`/`OS` (in `Settings.java`). |
 | `core/` | `prometheus-core` → `prometheus-core-<version>.jar` | `Bootstrap` (patch loading) and `ReleaseResolver` (patch jars), with minecraft-lib shaded in, unrenamed. |
 
-### Stage 0 hooks (`stage0/src/main/java/studio/dreamys/prometheus/stage0/`)
+### Stage 0 hooks (`stage0/src/main/java/ing/prometheusreengineer/minecraft/loader/stage0/`)
 
 | Hook | Platform | Registered in |
 |---|---|---|
@@ -130,7 +130,7 @@ Output: `stage0/target/prometheus-<version>-minecraft.jar` and `core/target/prom
 Check after a build:
 
 - the real `LegacyBase` is in the stage 0 jar (about 1 KB, with `runScan`):
-  `javap -p -cp stage0/target/prometheus-*-minecraft.jar studio.dreamys.prometheus.stage0.modlauncher.LegacyBase`
+  `javap -p -cp stage0/target/prometheus-*-minecraft.jar ing.prometheusreengineer.minecraft.loader.stage0.modlauncher.LegacyBase`
 - the classes are Java 8 (`major version: 52` in `javap -v`)
 - the core jar contains `ing/prometheusreengineer/minecraft/**` and keeps its own manifest
   (`FMLModType: GAMELIBRARY`, `Automatic-Module-Name: prometheus.core`)
@@ -157,7 +157,7 @@ JUnit 5 in each module's `src/test/java`, run by `mvn test` (and so by `mvn pack
   - the file helpers in `CoreResolver` and `ReleaseResolver`
 - **`FakeGitHub`:** the releases API, asset downloads (whole, chunked and cut short) and `patches.json` on the
   loopback address. Each module has its own copy.
-- **Stage 0's fake core:** `stage0/src/test/java/studio/dreamys/prometheus/core/Bootstrap.java`.
+- **Stage 0's fake core:** `stage0/src/test/java/ing/prometheusreengineer/minecraft/loader/core/Bootstrap.java`.
   - `TestSupport.fakeCore` jars it, and points `core.path` at that jar.
   - It loads in stage 0's child-first class loader, so tests drive it through `test.bootstrap.*` system properties.
 - **Test folders:** tests that load a jar (stage 0 never closes the core's class loader) or write `loader.log` use
