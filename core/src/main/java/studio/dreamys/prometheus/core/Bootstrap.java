@@ -9,6 +9,7 @@ import ing.prometheusreengineer.minecraft.util.Http;
 import ing.prometheusreengineer.minecraft.util.OS;
 import ing.prometheusreengineer.minecraft.util.Settings;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -170,10 +171,17 @@ public final class Bootstrap {
     }
 
     private static @NotNull String version() {
-        try (InputStream in = Bootstrap.class.getResourceAsStream("core.properties")) {
-            Properties properties = new Properties();
-            if (in != null) properties.load(in);
-            return properties.getProperty("version", "unknown");
+        return version(Bootstrap.class.getResourceAsStream("core.properties"));
+    }
+
+    /**
+     * The {@code version} in a core.properties, or "unknown" if there's none or it can't be read.
+     */
+    static @NotNull String version(@Nullable InputStream properties) {
+        try (InputStream in = properties) {
+            Properties read = new Properties();
+            if (in != null) read.load(in);
+            return read.getProperty("version", "unknown");
         } catch (IOException e) {
             return "unknown";
         }

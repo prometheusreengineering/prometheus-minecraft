@@ -143,10 +143,10 @@ final class ReleaseResolver {
         if (file == null || sha256 == null) return null;
         Path jar = dir.resolve(file);
         try {
-            if (Files.isRegularFile(jar) && Hashing.matches(Hashing.sha256(jar), sha256)) return jar;
-            log.warn("%s: cached %s is missing or changed, ignoring it", repository, file);
+            if (Hashing.matches(Hashing.sha256(jar), sha256)) return jar;
+            log.warn("%s: cached %s changed, ignoring it", repository, file);
         } catch (IOException e) {
-            log.warn("%s: could not read cached %s: %s", repository, file, e);
+            log.warn("%s: cached %s is missing or unreadable, ignoring it: %s", repository, file, e);
         }
         return null;
     }
@@ -154,7 +154,7 @@ final class ReleaseResolver {
     /**
      * Best effort: a jar another running game still has open stays until a later launch.
      */
-    private static void deleteOthers(@NotNull Path dir, @NotNull Path keep) {
+    static void deleteOthers(@NotNull Path dir, @NotNull Path keep) {
         try (DirectoryStream<Path> jars = Files.newDirectoryStream(dir, "*.jar")) {
             for (Path jar : jars) {
                 if (jar.equals(keep)) continue;
@@ -169,7 +169,7 @@ final class ReleaseResolver {
         }
     }
 
-    private static @NotNull Properties load(@NotNull Path file) {
+    static @NotNull Properties load(@NotNull Path file) {
         Properties properties = new Properties();
         if (!Files.isRegularFile(file)) return properties;
         try (Reader in = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
@@ -180,7 +180,7 @@ final class ReleaseResolver {
         return properties;
     }
 
-    private static void save(@NotNull Path file, @NotNull Properties properties) {
+    static void save(@NotNull Path file, @NotNull Properties properties) {
         try {
             StringWriter out = new StringWriter();
             properties.store(out, "Prometheus core: the cached release");
