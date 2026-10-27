@@ -15,6 +15,16 @@
     <version>2.0.0-minecraft</version>
     <description>The Prometheus' loader for Minecraft.</description>
 
+    <properties>
+        <!--
+            Everything but the Mixin calls in the hooks (Mixins.addConfiguration, MixinBootstrap.init,
+            MixinEnvironment.getDefaultEnvironment): Mixin only starts inside a running game, and a call that throws
+            counts as uncovered. Raise these if that changes.
+        -->
+        <coverage.lines>0.98</coverage.lines>
+        <coverage.branches>0.99</coverage.branches>
+    </properties>
+
     <!-- Everything is provided: stage 0 depends on nothing but the JDK and the platform APIs its hooks implement. -->
     <dependencies>
         <dependency>
