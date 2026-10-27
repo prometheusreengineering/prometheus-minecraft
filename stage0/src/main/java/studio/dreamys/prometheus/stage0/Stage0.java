@@ -83,10 +83,17 @@ public final class Stage0 {
     }
 
     static String version() {
-        try (InputStream in = Stage0.class.getResourceAsStream("stage0.properties")) {
-            Properties properties = new Properties();
-            if (in != null) properties.load(in);
-            return properties.getProperty("version", "unknown");
+        return version(Stage0.class.getResourceAsStream("stage0.properties"));
+    }
+
+    /**
+     * The {@code version} in a stage0.properties, or "unknown" if there's none or it can't be read.
+     */
+    static String version(InputStream properties) {
+        try (InputStream in = properties) {
+            Properties read = new Properties();
+            if (in != null) read.load(in);
+            return read.getProperty("version", "unknown");
         } catch (Throwable t) {
             return "unknown";
         }

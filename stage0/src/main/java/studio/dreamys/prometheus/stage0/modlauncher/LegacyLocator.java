@@ -75,12 +75,17 @@ final class LegacyLocator {
      * null when there's nothing to serve, which ModLauncher skips.
      */
     Map.Entry<Set<String>, Supplier<Function<String, Optional<URL>>>> classes() {
-        return entry(unclaimed(packages, "classPrefixes"));
+        return entry(unclaimed(packages, DECORATOR, "classPrefixes"));
     }
 
     Map.Entry<Set<String>, Supplier<Function<String, Optional<URL>>>> resources() {
-        return entry(unclaimed(resources, "resourceNames"));
+        return entry(unclaimed(resources, DECORATOR, "resourceNames"));
     }
+
+    /**
+     * Where ModLauncher 4-8 keep every service's claimed names (ModLauncher 9+ dropped the fields).
+     */
+    private static final String DECORATOR = "cpw.mods.modlauncher.TransformationServiceDecorator";
 
     private Map.Entry<Set<String>, Supplier<Function<String, Optional<URL>>>> entry(Set<String> keys) {
         if (keys.isEmpty()) return null;
@@ -94,10 +99,10 @@ final class LegacyLocator {
      * TransformationServiceDecorator). Best effort: services after us still see ours, and if the field can't be read,
      * everything is kept.
      */
-    private static Set<String> unclaimed(Set<String> ours, String field) {
+    static Set<String> unclaimed(Set<String> ours, String owner, String field) {
         Set<String> result = new LinkedHashSet<>(ours);
         try {
-            Class<?> decorator = Class.forName("cpw.mods.modlauncher.TransformationServiceDecorator", false, LegacyLocator.class.getClassLoader());
+            Class<?> decorator = Class.forName(owner, false, LegacyLocator.class.getClassLoader());
             java.lang.reflect.Field claimed = decorator.getDeclaredField(field);
             claimed.setAccessible(true);
             Object value = claimed.get(null);
@@ -117,11 +122,18 @@ final class LegacyLocator {
     /**
      * ModLauncher passes entry names: a/b/C.class for classes, the exact name for resources.
      */
-    private Optional<URL> find(String name) {
+    Optional<URL> find(String name) {
         Path jar = entries.get(name);
         if (jar == null) return Optional.empty();
+        return url("jar:" + jar.toUri() + "!/" + name);
+    }
+
+    /**
+     * Empty instead of an exception, ModLauncher's lookup must never throw.
+     */
+    static Optional<URL> url(String spec) {
         try {
-            return Optional.of(new URL("jar:" + jar.toUri().toURL() + "!/" + name));
+            return Optional.of(new URL(spec));
         } catch (Throwable t) {
             return Optional.empty();
         }

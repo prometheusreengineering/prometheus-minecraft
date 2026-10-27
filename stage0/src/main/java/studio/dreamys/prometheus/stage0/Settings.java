@@ -19,7 +19,11 @@ final class Settings {
         return isBlank(value) ? null : value.trim();
     }
 
-    @SuppressWarnings("SameParameterValue") //intellij overthinking it
+    static String get(String key, String fallback) {
+        String value = get(key);
+        return value == null ? fallback : value;
+    }
+
     static boolean getBoolean(String key, boolean fallback) {
         String value = get(key);
         if ("true".equalsIgnoreCase(value)) return true;

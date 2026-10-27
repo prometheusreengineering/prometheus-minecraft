@@ -10,6 +10,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.CopyOption;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -84,10 +85,8 @@ final class CoreResolver {
     }
 
     private static Path update(Path dir, Path stateFile, Properties state, Path cached) throws IOException {
-        String repository = Settings.get("core.repository");
-        if (repository == null) repository = "prometheusreengineering/prometheus-minecraft";
-        String api = Settings.get("github.api");
-        if (api == null) api = "https://api.github.com";
+        String repository = Settings.get("core.repository", "prometheusreengineering/prometheus-minecraft");
+        String api = Settings.get("github.api", "https://api.github.com");
 
         Map<?, ?> release = (Map<?, ?>) MiniJson.parse(new String(get(api + "/repos/" + repository + "/releases/latest"), StandardCharsets.UTF_8));
         String tag = (String) release.get("tag_name");
@@ -145,10 +144,10 @@ final class CoreResolver {
         if (file == null || sha256 == null) return null;
         Path jar = dir.resolve(file);
         try {
-            if (Files.isRegularFile(jar) && sha256.equalsIgnoreCase(sha256(jar))) return jar;
-            Stage0Log.warn("cached core %s is missing or changed, ignoring it", jar.getFileName());
+            if (sha256.equalsIgnoreCase(sha256(jar))) return jar;
+            Stage0Log.warn("cached core %s changed, ignoring it", jar.getFileName());
         } catch (IOException e) {
-            Stage0Log.warn("could not read cached core %s: %s", jar.getFileName(), e);
+            Stage0Log.warn("cached core %s is missing or unreadable, ignoring it: %s", jar.getFileName(), e);
         }
         return null;
     }
@@ -193,7 +192,7 @@ final class CoreResolver {
         Path tmp = Files.createTempFile(target.getParent(), target.getFileName().toString() + ".", ".tmp");
         HttpURLConnection connection = open(url);
         try {
-            MessageDigest sha256 = digest();
+            MessageDigest sha256 = digest("SHA-256");
             long length = connection.getContentLengthLong();
             long copied;
             try (InputStream in = connection.getInputStream(); OutputStream out = Files.newOutputStream(tmp)) {
@@ -206,15 +205,26 @@ final class CoreResolver {
             if (digest != null && !actual.equalsIgnoreCase(digest.substring(digest.indexOf(':') + 1).trim())) {
                 throw new IOException("sha256 mismatch for " + url + ": expected " + digest + ", got " + actual);
             }
-            try {
-                Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
-            }
+            moveIntoPlace(tmp, target, Files::move);
             return actual;
         } finally {
             connection.disconnect();
             Files.deleteIfExists(tmp);
+        }
+    }
+
+    /**
+     * {@link Files#move}, swappable so tests can reach the fallback for file systems without atomic moves.
+     */
+    interface Mover {
+        void move(Path source, Path target, CopyOption... options) throws IOException;
+    }
+
+    static void moveIntoPlace(Path tmp, Path target, Mover mover) throws IOException {
+        try {
+            mover.move(tmp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException e) {
+            mover.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
@@ -234,7 +244,7 @@ final class CoreResolver {
     /**
      * Best effort: a jar another running game still has open stays until a later launch.
      */
-    private static void deleteOtherCores(Path dir, Path keep) {
+    static void deleteOtherCores(Path dir, Path keep) {
         try (DirectoryStream<Path> jars = Files.newDirectoryStream(dir, ASSET_PREFIX + "*.jar")) {
             for (Path jar : jars) {
                 if (jar.equals(keep)) continue;
@@ -249,7 +259,7 @@ final class CoreResolver {
         }
     }
 
-    private static Properties load(Path file) {
+    static Properties load(Path file) {
         Properties properties = new Properties();
         if (!Files.isRegularFile(file)) return properties;
         try (Reader in = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
@@ -260,7 +270,7 @@ final class CoreResolver {
         return properties;
     }
 
-    private static void save(Path file, Properties properties) {
+    static void save(Path file, Properties properties) {
         try {
             Files.createDirectories(file.getParent());
             Path tmp = Files.createTempFile(file.getParent(), file.getFileName().toString() + ".", ".tmp");
@@ -278,7 +288,7 @@ final class CoreResolver {
     }
 
     static String sha256(Path file) throws IOException {
-        MessageDigest digest = digest();
+        MessageDigest digest = digest("SHA-256");
         try (InputStream in = Files.newInputStream(file)) {
             byte[] buffer = new byte[1 << 16];
             for (int n; (n = in.read(buffer)) != -1; ) digest.update(buffer, 0, n);
@@ -286,11 +296,11 @@ final class CoreResolver {
         return hex(digest.digest());
     }
 
-    private static MessageDigest digest() {
+    static MessageDigest digest(String algorithm) {
         try {
-            return MessageDigest.getInstance("SHA-256");
+            return MessageDigest.getInstance(algorithm);
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is required of every JRE", e);
+            throw new IllegalStateException(algorithm + " is required of every JRE", e);
         }
     }
 

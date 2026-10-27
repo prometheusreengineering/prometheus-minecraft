@@ -34,9 +34,10 @@ import java.util.function.Supplier;
  */
 public class ModLauncherHook extends LegacyBase {
     /**
-     * Java 21+: Forge 1.21+, where the patches go in the GAME layer and Mixin bootstraps itself.
+     * Java 21+: Forge 1.21+, where the patches go in the GAME layer and Mixin bootstraps itself. Not final so tests
+     * can take both paths on one JVM.
      */
-    private static final boolean MODERN = isJava21();
+    static boolean modern = hasMethod(List.class, "getFirst");
 
     private final List<Path> jars = new ArrayList<>();
     private final List<String> mixinConfigs = new ArrayList<>();
@@ -71,7 +72,7 @@ public class ModLauncherHook extends LegacyBase {
             for (int i = 0; i < urls.length; i++) urls[i] = jars.get(i).toUri().toURL();
             Thread.currentThread().setContextClassLoader(new URLClassLoader(urls, backup));
 
-            if (MODERN) {
+            if (modern) {
                 // 1.21+ bootstraps Mixin strictly as a ModLauncher service, calling MixinBootstrap.init() crashes
                 MixinEnvironment.getDefaultEnvironment();
             } else {
@@ -98,7 +99,7 @@ public class ModLauncherHook extends LegacyBase {
     @Override
     public List<ITransformationService.Resource> beginScanning(IEnvironment environment) {
         if (!active) return Collections.emptyList();
-        return ModernResources.of(jars, MODERN);
+        return ModernResources.of(jars, modern);
     }
 
     /**
@@ -136,10 +137,12 @@ public class ModLauncherHook extends LegacyBase {
         return Collections.emptyList();
     }
 
-    private static boolean isJava21() {
+    /**
+     * {@code hasMethod(List.class, "getFirst")} is true from Java 21.
+     */
+    static boolean hasMethod(Class<?> type, String name) {
         try {
-            //noinspection JavaReflectionMemberAccess
-            List.class.getMethod("getFirst");
+            type.getMethod(name);
             return true;
         } catch (NoSuchMethodException e) {
             return false;

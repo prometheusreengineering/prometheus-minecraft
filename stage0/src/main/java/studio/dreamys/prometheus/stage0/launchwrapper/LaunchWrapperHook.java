@@ -7,6 +7,8 @@ import studio.dreamys.prometheus.stage0.Stage0;
 
 import java.io.File;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -28,15 +30,17 @@ public class LaunchWrapperHook implements ITweaker {
         if (!Stage0.claim("launchwrapper")) return;
         Path dir = gameDir != null ? gameDir : Paths.get("").toAbsolutePath();
         Stage0.run("launchwrapper", dir,
-                jar -> {
-                    try {
-                        launchClassLoader.addURL(jar.toUri().toURL());
-                    } catch (MalformedURLException e) {
-                        throw new IllegalArgumentException("not a valid jar path: " + jar, e);
-                    }
-                },
+                jar -> launchClassLoader.addURL(url(jar.toUri())),
                 // a lambda, not Mixins::addConfiguration: Forge 1.8.9 has no Mixin unless a mod brings it
                 config -> Mixins.addConfiguration(config));
+    }
+
+    static URL url(URI uri) {
+        try {
+            return uri.toURL();
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException("not a valid jar path: " + uri, e);
+        }
     }
 
     @Override
