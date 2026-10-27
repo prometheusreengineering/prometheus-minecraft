@@ -74,6 +74,20 @@
             <version>26.0.2</version>
             <scope>provided</scope>
         </dependency>
+        <!-- tests only: NeoForge's IncompatibleFileReporting needs it, and the game ships it -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- tests only, for Env (setting environment variables); stage 0 itself never uses the lib -->
+        <dependency>
+            <groupId>ing.prometheusreengineer.minecraft</groupId>
+            <artifactId>minecraft-lib</artifactId>
+            <version>1.0.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
