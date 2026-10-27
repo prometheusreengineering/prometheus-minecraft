@@ -46,8 +46,8 @@ public final class Bootstrap {
     @SuppressWarnings("unchecked")
     private Bootstrap(@NotNull Map<String, Object> context) {
         this.context = context;
-        this.addToClasspath = (Consumer<Path>) context.get("addToClasspath");
-        this.addMixinConfig = (Consumer<String>) context.get("addMixinConfig");
+        addToClasspath = (Consumer<Path>) context.get("addToClasspath");
+        addMixinConfig = (Consumer<String>) context.get("addMixinConfig");
     }
 
     /** Never throws: the worst case is no patches this launch. */
@@ -73,8 +73,8 @@ public final class Bootstrap {
         List<Patch> applicable = new ArrayList<>();
         Set<String> repositories = new HashSet<>();
         for (Patch patch : patches()) {
-            // several entries can share a repo (Essential has one per loader), one jar is enough
-            if (isClassPresent(patch.classPath) && repositories.add(patch.repositoryName)) applicable.add(patch);
+            // one jar per repo, even if two entries point at it
+            if (isTargetPresent(patch) && repositories.add(patch.repositoryName)) applicable.add(patch);
         }
         log.info("%d applicable patches: %s", applicable.size(), names(applicable));
 
@@ -101,7 +101,7 @@ public final class Bootstrap {
         String json = null;
         if (!Settings.getBoolean("offline", false)) {
             try {
-                json = Http.getString(Settings.get("patches.url", PATCHES_URL), Collections.<String, String>emptyMap());
+                json = Http.getString(Settings.get("patches.url", PATCHES_URL), Collections.emptyMap());
                 AtomicFiles.writeString(cache, json);
             } catch (IOException e) {
                 log.warn("could not fetch patches.json: %s", e.toString()); // expected offline, one line
@@ -114,11 +114,20 @@ public final class Bootstrap {
             }
             if (json == null) return Collections.emptyList();
             List<Patch> patches = GSON.fromJson(json, new TypeToken<List<Patch>>() {}.getType());
-            return patches == null ? Collections.<Patch>emptyList() : patches;
+            return patches == null ? Collections.emptyList() : patches;
         } catch (IOException | JsonParseException e) {
             log.error("patches.json is unreadable", e);
             return Collections.emptyList();
         }
+    }
+
+    /** Any of the patch's classes: its target usually has a different entry class on each platform. */
+    private static boolean isTargetPresent(@NotNull Patch patch) {
+        if (patch.classPaths == null) return false;
+        for (String className : patch.classPaths) {
+            if (className != null && isClassPresent(className)) return true;
+        }
+        return false;
     }
 
     /** Several class loaders, because which one can see the target differs between platforms. */

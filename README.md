@@ -79,7 +79,7 @@ Attach **both** jars to a GitHub release. Stage 0 picks the newest `prometheus-c
 ```json
 {
     "name": "", // name of the patch (used for logging)
-    "classPath": "", // classpath of the target (used to identify if the target of the patch is present)
+    "classPaths": [""], // classes of the target, one per platform if they differ (the patch applies if any of them is present)
     "repositoryName": "" // name of the github repository (used to download the patch from release)
 }
 ```

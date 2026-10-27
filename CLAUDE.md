@@ -90,9 +90,10 @@ GitHub release of each patch repo: the patch jar
   cached jar against the hash stored when it was downloaded.
 - **Never write over a jar that may be open.** Another running game keeps the jar open, and Windows then refuses to
   replace it. Download to a new name, and delete old jars one at a time, best effort.
-- **`patches.json` is read from `main` by every installed loader, including the ones from before stage 0.** Keep its
-  format: only add fields (`Patch` has `name`, `classPath`, `repositoryName`). Old loaders take a patch release's
-  first asset, so keep the patch jar as the first asset.
+- **`patches.json` is read from `main` by every installed core.** One entry per patch repo: `name`, `classPaths` (any
+  one present means the target is installed) and `repositoryName` (`Patch`). Loaders from before stage 0 are not
+  supported anymore: they expected `classPath` as a single string. A format change breaks every core older than it,
+  so prefer adding fields, which Gson ignores in older cores.
 
 ## Settings
 

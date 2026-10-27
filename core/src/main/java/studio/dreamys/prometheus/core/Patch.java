@@ -1,20 +1,22 @@
 package studio.dreamys.prometheus.core;
 
-/**
- * One entry of patches.json. Only add fields: loaders from before stage 0 read the same file with Gson, which ignores
- * fields it doesn't know.
- */
+import java.util.List;
+
+/** One entry of patches.json, read with Gson. */
 public class Patch {
     /** For logging. */
     public String name;
-    /** A class that only exists when the patch's target is installed. */
-    public String classPath;
+    /**
+     * Classes that only exist when the patch's target is installed. Any one of them is enough: a target usually has a
+     * different entry class on each platform (Essential has one for Fabric, LaunchWrapper and ModLauncher).
+     */
+    public List<String> classPaths;
     /** The GitHub repo (under prometheusreengineering) whose latest release has the patch jar. */
     public String repositoryName;
 
-    public Patch(String name, String classPath, String repositoryName) {
+    public Patch(String name, List<String> classPaths, String repositoryName) {
         this.name = name;
-        this.classPath = classPath;
+        this.classPaths = classPaths;
         this.repositoryName = repositoryName;
     }
 }
