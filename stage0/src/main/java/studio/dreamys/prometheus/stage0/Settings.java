@@ -46,10 +46,11 @@ final class Settings {
 
         String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
         Path base;
-        if (os.contains("win")) {
-            base = fromEnvOr("APPDATA", home("AppData", "Roaming")).resolve(".minecraft");
-        } else if (os.contains("darwin") || os.contains("mac")) {
+        // mac first: "darwin" contains "win"
+        if (os.contains("mac") || os.contains("darwin")) {
             base = home("Library", "Application Support");
+        } else if (os.contains("win")) {
+            base = fromEnvOr("APPDATA", home("AppData", "Roaming")).resolve(".minecraft");
         } else {
             base = fromEnvOr("XDG_DATA_HOME", home(".local", "share"));
         }
