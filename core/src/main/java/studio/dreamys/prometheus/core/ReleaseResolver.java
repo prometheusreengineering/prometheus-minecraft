@@ -45,7 +45,9 @@ final class ReleaseResolver {
 
     private ReleaseResolver() {}
 
-    /** Null when there is no usable jar. Never throws. */
+    /**
+     * Null when there is no usable jar. Never throws.
+     */
     static @Nullable Path resolve(@NotNull String repository) {
         String override = Settings.get("patch." + repository + ".path");
         if (override != null) {
@@ -77,13 +79,13 @@ final class ReleaseResolver {
             }
         }
 
-        if (cached != null) log.info("%s: using cached %s (%s)", repository, cached.getFileName(), state.getProperty("tag"));
+        if (cached != null)
+            log.info("%s: using cached %s (%s)", repository, cached.getFileName(), state.getProperty("tag"));
         else log.warn("%s: no verified jar in %s", repository, dir);
         return cached;
     }
 
-    private static @NotNull Path update(@NotNull String repository, @NotNull Path dir, @NotNull Path stateFile,
-                                        @NotNull Properties state, @Nullable Path cached) throws IOException {
+    private static @NotNull Path update(@NotNull String repository, @NotNull Path dir, @NotNull Path stateFile, @NotNull Properties state, @Nullable Path cached) throws IOException {
         String api = Settings.get("github.api", "https://api.github.com");
         String url = api + "/repos/prometheusreengineering/" + repository + "/releases/latest";
         JsonObject release = GSON.fromJson(Http.getString(url, HEADERS), JsonObject.class);
@@ -99,12 +101,14 @@ final class ReleaseResolver {
         } else {
             // never write over a jar that may be open (another running game, see stage 0's CoreResolver)
             Path target = dir.resolve(name);
-            if (Files.exists(target)) target = dir.resolve(name.substring(0, name.length() - ".jar".length()) + "-" + System.currentTimeMillis() + ".jar");
+            if (Files.exists(target))
+                target = dir.resolve(name.substring(0, name.length() - ".jar".length()) + "-" + System.currentTimeMillis() + ".jar");
 
             log.info("%s: downloading %s (%s)", repository, name, tag);
             Http.download(asset.get("browser_download_url").getAsString(), target, digest);
             String sha256 = Hashing.sha256(target);
-            if (digest == null) log.warn("%s: release %s publishes no digest, trusting the download (%s)", repository, tag, sha256);
+            if (digest == null)
+                log.warn("%s: release %s publishes no digest, trusting the download (%s)", repository, tag, sha256);
             state.setProperty("sha256", sha256);
             state.setProperty("asset", name);
             state.setProperty("file", target.getFileName().toString());
@@ -118,7 +122,9 @@ final class ReleaseResolver {
         return result;
     }
 
-    /** The first .jar asset, as the loader always took (it used to take assets[0]). */
+    /**
+     * The first .jar asset, as the loader always took (it used to take assets[0]).
+     */
     private static @NotNull JsonObject firstJar(@NotNull JsonObject release, @NotNull String tag) throws IOException {
         JsonArray assets = release.getAsJsonArray("assets");
         if (assets != null) {
@@ -145,7 +151,9 @@ final class ReleaseResolver {
         return null;
     }
 
-    /** Best effort: a jar another running game still has open stays until a later launch. */
+    /**
+     * Best effort: a jar another running game still has open stays until a later launch.
+     */
     private static void deleteOthers(@NotNull Path dir, @NotNull Path keep) {
         try (DirectoryStream<Path> jars = Files.newDirectoryStream(dir, "*.jar")) {
             for (Path jar : jars) {

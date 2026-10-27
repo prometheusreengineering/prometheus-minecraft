@@ -20,7 +20,9 @@ import java.util.Locale;
 public final class Stage0Log {
     private Stage0Log() {}
 
-    /** A system property, so the two hooks NeoForge 1.21.1 loads with different class loaders share one file. */
+    /**
+     * A system property, so the two hooks NeoForge 1.21.1 loads with different class loaders share one file.
+     */
     private static final String STARTED = "prometheus.stage0.log.started";
 
     public static void info(String format, Object... args) {
@@ -44,8 +46,7 @@ public final class Stage0Log {
             Path file = Settings.configFolder().resolve("logs").resolve("stage0.log");
             Files.createDirectories(file.getParent());
             boolean first = System.getProperties().putIfAbsent(STARTED, "true") == null;
-            try (Writer out = Files.newBufferedWriter(file, StandardCharsets.UTF_8, StandardOpenOption.CREATE,
-                    first ? StandardOpenOption.TRUNCATE_EXISTING : StandardOpenOption.APPEND)) {
+            try (Writer out = Files.newBufferedWriter(file, StandardCharsets.UTF_8, StandardOpenOption.CREATE, first ? StandardOpenOption.TRUNCATE_EXISTING : StandardOpenOption.APPEND)) {
                 out.write(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date()) + " " + line + System.lineSeparator());
                 if (t != null) out.write(stackTrace(t));
             }

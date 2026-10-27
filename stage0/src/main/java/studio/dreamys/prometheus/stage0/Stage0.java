@@ -43,6 +43,7 @@ public final class Stage0 {
      * A system property rather than a static field: NeoForge 1.21.1 calls both our ModLauncher service and our locator,
      * and loads them with different class loaders, so each would see its own static.
      */
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted") //intellij overthinking it
     public static boolean claim(String hook) {
         Object first = System.getProperties().putIfAbsent(CLAIM, hook);
         if (first == null) return true;
@@ -50,7 +51,9 @@ public final class Stage0 {
         return false;
     }
 
-    /** Never throws: a broken core means no patches this launch, not a crashed game. */
+    /**
+     * Never throws: a broken core means no patches this launch, not a crashed game.
+     */
     public static void run(String platform, Path gameDir, Consumer<Path> addToClasspath, Consumer<String> addMixinConfig) {
         try {
             Stage0Log.info("stage0 %s on %s, java %s", version(), platform, System.getProperty("java.version"));

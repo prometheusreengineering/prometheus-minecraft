@@ -19,6 +19,7 @@ final class Settings {
         return isBlank(value) ? null : value.trim();
     }
 
+    @SuppressWarnings("SameParameterValue") //intellij overthinking it
     static boolean getBoolean(String key, boolean fallback) {
         String value = get(key);
         if ("true".equalsIgnoreCase(value)) return true;
@@ -36,7 +37,9 @@ final class Settings {
         }
     }
 
-    /** Same as minecraft-lib's {@code OS.getConfigFolder()}. */
+    /**
+     * Same as minecraft-lib's {@code OS.getConfigFolder()}.
+     */
     static Path configFolder() {
         String override = get("folder");
         if (override != null) return Paths.get(override).toAbsolutePath();

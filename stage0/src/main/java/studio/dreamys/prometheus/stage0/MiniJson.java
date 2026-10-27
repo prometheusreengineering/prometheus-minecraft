@@ -94,17 +94,28 @@ final class MiniJson {
             if (at >= text.length()) break;
             char escaped = text.charAt(at++);
             switch (escaped) {
-                case 'b': out.append('\b'); break;
-                case 'f': out.append('\f'); break;
-                case 'n': out.append('\n'); break;
-                case 'r': out.append('\r'); break;
-                case 't': out.append('\t'); break;
+                case 'b':
+                    out.append('\b');
+                    break;
+                case 'f':
+                    out.append('\f');
+                    break;
+                case 'n':
+                    out.append('\n');
+                    break;
+                case 'r':
+                    out.append('\r');
+                    break;
+                case 't':
+                    out.append('\t');
+                    break;
                 case 'u':
                     if (at + 4 > text.length()) throw error("bad unicode escape");
                     out.append((char) Integer.parseInt(text.substring(at, at + 4), 16));
                     at += 4;
                     break;
-                default: out.append(escaped); // \" \\ \/
+                default:
+                    out.append(escaped); // \" \\ \/
             }
         }
         throw error("unterminated string");
@@ -126,7 +137,9 @@ final class MiniJson {
         return value;
     }
 
-    /** Consumes {@code c} if it is next. */
+    /**
+     * Consumes {@code c} if it is next.
+     */
     private boolean peek(char c) {
         if (at < text.length() && text.charAt(at) == c) {
             at++;

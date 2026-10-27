@@ -11,7 +11,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-/** Forge 1.8-1.12 (and Lunar on them): the {@code TweakClass} in MANIFEST.MF. */
+/**
+ * Forge 1.8-1.12 (and Lunar on them): the {@code TweakClass} in MANIFEST.MF.
+ */
 public class LaunchWrapperHook implements ITweaker {
     private Path gameDir;
 
@@ -20,6 +22,7 @@ public class LaunchWrapperHook implements ITweaker {
         this.gameDir = gameDir != null ? gameDir.toPath().toAbsolutePath() : Paths.get("").toAbsolutePath();
     }
 
+    @SuppressWarnings("Convert2MethodRef") //explained below
     @Override
     public void injectIntoClassLoader(LaunchClassLoader launchClassLoader) {
         if (!Stage0.claim("launchwrapper")) return;

@@ -15,6 +15,7 @@ import java.util.Map;
  * at runtime, because the JVM tells methods apart by their full descriptor. stage0 compiles ModLauncherHook against a
  * stub of this class without these two methods, and the build swaps this one in.
  */
+@SuppressWarnings("JavadocReference") //unreachable link to other module
 public abstract class LegacyBase implements ITransformationService {
     // abstract in ModLauncher 2-8, so it has to exist there, but 4-8 never call it (they use runScan)
     public void beginScanning(IEnvironment environment) {

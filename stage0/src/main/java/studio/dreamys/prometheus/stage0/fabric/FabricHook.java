@@ -6,8 +6,11 @@ import net.fabricmc.loader.impl.launch.FabricLauncherBase;
 import org.spongepowered.asm.mixin.Mixins;
 import studio.dreamys.prometheus.stage0.Stage0;
 
-/** Fabric: the {@code preLaunch} entrypoint in fabric.mod.json. */
+/**
+ * Fabric: the {@code preLaunch} entrypoint in fabric.mod.json.
+ */
 public class FabricHook implements PreLaunchEntrypoint {
+    @SuppressWarnings("Convert2MethodRef") //explained below
     @Override
     public void onPreLaunch() {
         if (!Stage0.claim("fabric")) return;

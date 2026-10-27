@@ -15,5 +15,6 @@ import java.util.Map;
  * Keep its members (apart from those two) the same as stage0-legacy's LegacyBase.
  */
 public abstract class LegacyBase implements ITransformationService {
+    @SuppressWarnings("unused") //used by ModLauncherHook
     protected abstract List<Map.Entry<String, Path>> legacyScan();
 }

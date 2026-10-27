@@ -32,7 +32,9 @@ import java.util.jar.JarFile;
  * loads on every ModLauncher version. Never throws.
  */
 final class LegacyLocator {
-    /** Entry name (a/b/C.class, a/b.json) to the jar that has it. The first jar wins. */
+    /**
+     * Entry name (a/b/C.class, a/b.json) to the jar that has it. The first jar wins.
+     */
     private final Map<String, Path> entries = new HashMap<>();
     private final Set<String> packages = new LinkedHashSet<>();
     private final Set<String> resources = new LinkedHashSet<>();
@@ -57,7 +59,8 @@ final class LegacyLocator {
             int slash = name.lastIndexOf('/');
             if (slash <= 0) return; // the default package can't be a prefix
             String prefix = name.substring(0, slash + 1).replace('/', '.');
-            if (prefix.startsWith("net.minecraft.") || prefix.startsWith("net.minecraftforge.") || prefix.startsWith(".")) return;
+            if (prefix.startsWith("net.minecraft.") || prefix.startsWith("net.minecraftforge.") || prefix.startsWith("."))
+                return;
             packages.add(prefix);
         } else {
             // pack.mcmeta, mcmod.info, logo.png... are in many jars, and a name another service claims is fatal.
@@ -68,7 +71,9 @@ final class LegacyLocator {
         if (!entries.containsKey(name)) entries.put(name, jar);
     }
 
-    /** null when there's nothing to serve, which ModLauncher skips. */
+    /**
+     * null when there's nothing to serve, which ModLauncher skips.
+     */
     Map.Entry<Set<String>, Supplier<Function<String, Optional<URL>>>> classes() {
         return entry(unclaimed(packages, "classPrefixes"));
     }
@@ -98,7 +103,9 @@ final class LegacyLocator {
             Object value = claimed.get(null);
             if (value instanceof Set) {
                 for (Object name : (Set<?>) value) {
-                    if (result.remove(name)) Stage0Log.warn("%s is already claimed by another ModLauncher service, skipping it", name);
+                    //noinspection SuspiciousMethodCalls nothing suspicious here
+                    if (result.remove(name))
+                        Stage0Log.warn("%s is already claimed by another ModLauncher service, skipping it", name);
                 }
             }
         } catch (Throwable t) {
@@ -107,7 +114,9 @@ final class LegacyLocator {
         return result;
     }
 
-    /** ModLauncher passes entry names: a/b/C.class for classes, the exact name for resources. */
+    /**
+     * ModLauncher passes entry names: a/b/C.class for classes, the exact name for resources.
+     */
     private Optional<URL> find(String name) {
         Path jar = entries.get(name);
         if (jar == null) return Optional.empty();

@@ -41,7 +41,9 @@ final class CoreResolver {
     private static final String ASSET_PREFIX = "prometheus-core-";
     private static final String USER_AGENT = "Prometheus-Minecraft-Stage0 (+https://github.com/prometheusreengineering)";
 
-    /** Null when there is no usable core. Never throws. */
+    /**
+     * Null when there is no usable core. Never throws.
+     */
     static Path resolve() {
         String override = Settings.get("core.path");
         if (override != null) {
@@ -87,8 +89,7 @@ final class CoreResolver {
         String api = Settings.get("github.api");
         if (api == null) api = "https://api.github.com";
 
-        Map<?, ?> release = (Map<?, ?>) MiniJson.parse(new String(
-                get(api + "/repos/" + repository + "/releases/latest"), StandardCharsets.UTF_8));
+        Map<?, ?> release = (Map<?, ?>) MiniJson.parse(new String(get(api + "/repos/" + repository + "/releases/latest"), StandardCharsets.UTF_8));
         String tag = (String) release.get("tag_name");
         Map<?, ?> asset = coreAsset(release);
         String name = (String) asset.get("name");
@@ -102,11 +103,13 @@ final class CoreResolver {
             // Never write over a jar that may be open: another running game holds it (Windows won't replace it then),
             // and so does an earlier load in this JVM. A taken name (a corrupted copy) gets a fresh one instead.
             Path target = dir.resolve(name);
-            if (Files.exists(target)) target = dir.resolve(name.substring(0, name.length() - ".jar".length()) + "-" + System.currentTimeMillis() + ".jar");
+            if (Files.exists(target))
+                target = dir.resolve(name.substring(0, name.length() - ".jar".length()) + "-" + System.currentTimeMillis() + ".jar");
 
             Stage0Log.info("downloading core %s (%s)", name, tag);
             String sha256 = download((String) asset.get("browser_download_url"), target, digest);
-            if (digest == null) Stage0Log.warn("release %s publishes no digest, trusting the download (%s)", tag, sha256);
+            if (digest == null)
+                Stage0Log.warn("release %s publishes no digest, trusting the download (%s)", tag, sha256);
             state.setProperty("sha256", sha256);
             state.setProperty("asset", name);
             state.setProperty("file", target.getFileName().toString());
@@ -133,7 +136,9 @@ final class CoreResolver {
         throw new IOException("release " + release.get("tag_name") + " has no " + ASSET_PREFIX + "*.jar");
     }
 
-    /** The cached jar if it exists and still has the hash it was downloaded with, else null. */
+    /**
+     * The cached jar if it exists and still has the hash it was downloaded with, else null.
+     */
     private static Path verifiedCache(Path dir, Properties state) {
         String file = state.getProperty("file");
         String sha256 = state.getProperty("sha256");
@@ -226,7 +231,9 @@ final class CoreResolver {
 
     // ---- files ----------------------------------------------------------------------------------------------------
 
-    /** Best effort: a jar another running game still has open stays until a later launch. */
+    /**
+     * Best effort: a jar another running game still has open stays until a later launch.
+     */
     private static void deleteOtherCores(Path dir, Path keep) {
         try (DirectoryStream<Path> jars = Files.newDirectoryStream(dir, ASSET_PREFIX + "*.jar")) {
             for (Path jar : jars) {

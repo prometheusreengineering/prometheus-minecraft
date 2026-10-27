@@ -43,14 +43,17 @@ public final class Bootstrap {
     private final Consumer<Path> addToClasspath;
     private final Consumer<String> addMixinConfig;
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") //checked by stage0
     private Bootstrap(@NotNull Map<String, Object> context) {
         this.context = context;
         addToClasspath = (Consumer<Path>) context.get("addToClasspath");
         addMixinConfig = (Consumer<String>) context.get("addMixinConfig");
     }
 
-    /** Never throws: the worst case is no patches this launch. */
+    /**
+     * Never throws: the worst case is no patches this launch.
+     */
+    @SuppressWarnings("unused") //used by stage0
     public static void run(@NotNull Map<String, Object> context) {
         // there's one copy of the lib, the core's, so its own log lines belong to the loader
         Log.setOwner("loader");
@@ -62,8 +65,7 @@ public final class Bootstrap {
     }
 
     private void patch() {
-        log.info("core %s, stage0 %s (contract %s), platform %s", version(), context.get("stage0Version"),
-                context.get("contract"), context.get("platform"));
+        log.info("core %s, stage0 %s (contract %s), platform %s", version(), context.get("stage0Version"), context.get("contract"), context.get("platform"));
 
         // patches compile against minecraft-lib as provided, so it has to be where their classes are
         Path coreJar = (Path) context.get("coreJar");
@@ -95,7 +97,9 @@ public final class Bootstrap {
         }
     }
 
-    /** patches.json from GitHub, else the last copy that was fetched. */
+    /**
+     * patches.json from GitHub, else the last copy that was fetched.
+     */
     private static @NotNull List<Patch> patches() {
         Path cache = OS.getConfigFolder().resolve("cache").resolve("patches.json");
         String json = null;
@@ -121,7 +125,9 @@ public final class Bootstrap {
         }
     }
 
-    /** Any of the patch's classes: its target usually has a different entry class on each platform. */
+    /**
+     * Any of the patch's classes: its target usually has a different entry class on each platform.
+     */
     private static boolean isTargetPresent(@NotNull Patch patch) {
         if (patch.classPaths == null) return false;
         for (String className : patch.classPaths) {
@@ -130,7 +136,9 @@ public final class Bootstrap {
         return false;
     }
 
-    /** Several class loaders, because which one can see the target differs between platforms. */
+    /**
+     * Several class loaders, because which one can see the target differs between platforms.
+     */
     private static boolean isClassPresent(@NotNull String className) {
         ClassLoader[] loaders = {Thread.currentThread().getContextClassLoader(), Bootstrap.class.getClassLoader(), ClassLoader.getSystemClassLoader()};
         for (ClassLoader loader : loaders) {

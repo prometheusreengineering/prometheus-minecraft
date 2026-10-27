@@ -3,6 +3,7 @@ package studio.dreamys.prometheus.stage0.modlauncher;
 import cpw.mods.modlauncher.api.IEnvironment;
 import cpw.mods.modlauncher.api.ITransformationService;
 import cpw.mods.modlauncher.api.ITransformer;
+import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.launch.MixinBootstrap;
 import org.spongepowered.asm.mixin.MixinEnvironment;
 import org.spongepowered.asm.mixin.Mixins;
@@ -32,7 +33,9 @@ import java.util.function.Supplier;
  * 1.21.1. ModLauncher calls {@code onLoad} first, then {@code initialize}, the scan, and {@code transformers}.
  */
 public class ModLauncherHook extends LegacyBase {
-    /** Java 21+: Forge 1.21+, where the patches go in the GAME layer and Mixin bootstraps itself. */
+    /**
+     * Java 21+: Forge 1.21+, where the patches go in the GAME layer and Mixin bootstraps itself.
+     */
     private static final boolean MODERN = isJava21();
 
     private final List<Path> jars = new ArrayList<>();
@@ -41,7 +44,7 @@ public class ModLauncherHook extends LegacyBase {
     private LegacyLocator legacyLocator;
 
     @Override
-    public String name() {
+    public @NotNull String name() {
         return "prometheus-minecraft";
     }
 
@@ -89,7 +92,9 @@ public class ModLauncherHook extends LegacyBase {
         }
     }
 
-    /** ModLauncher 9+. Never called on 2-8, so ModernResources (and its 9+ types) never load there. */
+    /**
+     * ModLauncher 9+. Never called on 2-8, so ModernResources (and its 9+ types) never load there.
+     */
     @Override
     public List<ITransformationService.Resource> beginScanning(IEnvironment environment) {
         if (!active) return Collections.emptyList();
@@ -100,6 +105,7 @@ public class ModLauncherHook extends LegacyBase {
      * ModLauncher 4-8, through {@link LegacyBase#runScan}. This only shows the jars to launch plugins (Mixin finds
      * their configs here); {@link #additionalClassesLocator} is what puts them in the game's class loader.
      */
+    @SuppressWarnings("JavadocReference") //unreachable link to other module
     @Override
     protected List<Map.Entry<String, Path>> legacyScan() {
         List<Map.Entry<String, Path>> entries = new ArrayList<>();
@@ -114,23 +120,25 @@ public class ModLauncherHook extends LegacyBase {
      * need no LegacyBase trick. ModLauncher 9-10 also ask, but there the jars are already GAME-layer resources, so
      * this only answers when runScan ran (4-8). Not @Override: NeoForge's ModLauncher doesn't have them.
      */
-
+    @SuppressWarnings("removal") //deprecated stuff, we basically breathe it
     public Map.Entry<Set<String>, Supplier<Function<String, Optional<URL>>>> additionalClassesLocator() {
         return legacyLocator == null ? null : legacyLocator.classes();
     }
 
+    @SuppressWarnings("removal") //deprecated stuff, we basically breathe it
     public Map.Entry<Set<String>, Supplier<Function<String, Optional<URL>>>> additionalResourcesLocator() {
         return legacyLocator == null ? null : legacyLocator.resources();
     }
 
+    @SuppressWarnings("rawtypes") //weird java not seeing @NotNull
     @Override
-    @SuppressWarnings("rawtypes")
-    public List<ITransformer> transformers() {
+    public @NotNull List<ITransformer> transformers() {
         return Collections.emptyList();
     }
 
     private static boolean isJava21() {
         try {
+            //noinspection JavaReflectionMemberAccess
             List.class.getMethod("getFirst");
             return true;
         } catch (NoSuchMethodException e) {
