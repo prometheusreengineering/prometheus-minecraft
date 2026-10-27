@@ -117,7 +117,7 @@ GitHub release of each patch repo: the patch jar
 There may be no `mvn` on the PATH. IntelliJ's bundled Maven works:
 `%APPDATA%/JetBrains/IntelliJIdea<version>/plugins/maven-plugin/lib/maven3/bin/mvn`.
 
-1. `mvn install` in `../minecraft-lib` first. The core depends on `minecraft-lib` `1.0-SNAPSHOT`.
+1. `mvn install` in `../minecraft-lib` first. The core depends on `minecraft-lib` `1.0.0`.
 2. `mvn package` in **this repo's root** (`prometheus-parent`). Running it in `stage0/` alone fails, because Maven
    then can't see `stage0-legacy`. To build only stage 0: `mvn -pl stage0 -am package`.
 

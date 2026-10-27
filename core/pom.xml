@@ -21,7 +21,7 @@
         <dependency>
             <groupId>ing.prometheusreengineer.minecraft</groupId>
             <artifactId>minecraft-lib</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <!-- the game's; 2.2.4 is 1.8.9's, so only API that it already has -->
         <dependency>
