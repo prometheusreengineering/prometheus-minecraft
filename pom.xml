@@ -13,13 +13,13 @@
 
     <!--
         stage0-legacy: the ModLauncher 2-8 half of the transformation service (see stage0's ModLauncherHook)
-        stage0:        the jar users install. JDK only, rarely changes. Downloads and starts the core.
         core:          the loader logic + minecraft-lib. Auto-updated from GitHub releases.
+        stage0:        the jar users install. JDK only, rarely changes. Carries a core and starts it.
     -->
     <modules>
         <module>stage0-legacy</module>
-        <module>stage0</module>
         <module>core</module>
+        <module>stage0</module>
     </modules>
 
     <properties>

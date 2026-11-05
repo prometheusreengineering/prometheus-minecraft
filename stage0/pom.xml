@@ -19,9 +19,10 @@
         <!--
             Everything but the Mixin calls in the hooks (Mixins.addConfiguration, MixinBootstrap.init,
             MixinEnvironment.getDefaultEnvironment): Mixin only starts inside a running game, and a call that throws
-            counts as uncovered. Raise these if that changes.
+            counts as uncovered. The check also runs after the real LegacyBase replaced the tested stub, whose lines count
+            as missed. Raise these if that changes.
         -->
-        <coverage.lines>0.98</coverage.lines>
+        <coverage.lines>0.96</coverage.lines>
         <coverage.branches>0.99</coverage.branches>
     </properties>
 
@@ -91,12 +92,22 @@
             <version>1.7.36</version>
             <scope>test</scope>
         </dependency>
-        <!-- tests only, for Env (setting environment variables); stage 0 itself never uses the lib -->
+        <!--
+            The core this jar carries (prometheus-core.jar next to Stage0.class, copied in at prepare-package). Only here so the reactor builds the core
+            first: none of its classes or dependencies are on stage 0's class path (no transitive dependencies, and
+            excluded from the tests, which use a fake core).
+        -->
         <dependency>
-            <groupId>ing.prometheusreengineer.minecraft</groupId>
-            <artifactId>minecraft-lib</artifactId>
-            <version>1.0.0</version>
-            <scope>test</scope>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>prometheus-core</artifactId>
+            <version>${project.parent.version}</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 
@@ -128,7 +139,40 @@
                             <overWriteSnapshots>true</overWriteSnapshots>
                         </configuration>
                     </execution>
+                    <execution>
+                        <!-- the core as a whole jar inside this one, see Stage0 -->
+                        <id>embed-core</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeArtifactIds>prometheus-core</includeArtifactIds>
+                            <excludeTransitive>true</excludeTransitive>
+                            <outputDirectory>${project.build.outputDirectory}/ing/prometheusreengineer/minecraft/loader/stage0</outputDirectory>
+                            <stripVersion>true</stripVersion>
+                        </configuration>
+                    </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <!-- the carried core is measured in its own module -->
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*.jar</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <classpathDependencyExcludes>
+                        <classpathDependencyExclude>${project.groupId}:prometheus-core</classpathDependencyExclude>
+                    </classpathDependencyExcludes>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

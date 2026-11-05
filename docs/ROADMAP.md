@@ -1,7 +1,7 @@
 # Roadmap: the loader as the only way in
 
 Prometheus is moving from "every patch is its own mod, plus a loader that downloads them" to "the loader is the only way
-in". This page is the plan, why each decision was made, and what's done. Last updated 2026-10-27.
+in". This page is the plan, why each decision was made, and what's done. Last updated 2026-11-05.
 
 ## Why
 
@@ -21,9 +21,10 @@ Instead, the loader becomes the only entry point:
 ```
 installed: prometheus-<version>-minecraft.jar   (stage 0, Java 8, JDK only, rarely changes)
    │  one hook per platform: Fabric preLaunch | LaunchWrapper tweaker | ModLauncher service | NeoForge locator
-   │  downloads + verifies the core, or uses the cached one when offline
+   │  unpacks the core jar it carries and starts it
    ▼
-GitHub release: prometheus-core-<version>.jar   (loader logic + minecraft-lib, unrenamed)
+prometheus-core-<version>.jar   (loader logic + minecraft-lib, unrenamed)
+   │  carried: hands off to a newer core (GitHub release, verified + cached) if there is one
    │  reads patches.json, keeps the patches whose target is installed
    │  downloads + verifies each, adds it to the class path, registers its mixin configs, calls PrometheusPatch.init
    ▼
@@ -34,6 +35,11 @@ GitHub releases of each patch: lunar, essential, dawn
 - **Stage 0 → core** passes only JDK types: stage 0 calls `Bootstrap.run(Map<String, Object>)` by reflection, so it
   doesn't matter which class loader each side lives in. The keys are versioned by `Stage0.CONTRACT`.
 - **One release instead of two.** The lib ships inside the core, so there's no matrix of loader and lib versions.
+- **Stage 0 carries a core and the core updates itself** (like EssentialLoader's stages). Stage 0 used to download the
+  core itself, which needed a hand-kept copy of the lib's `Settings`/`OS` and put the update logic in the one jar users
+  can't easily update. Now stage 0 only unpacks the core it was built with; that core resolves the newest one and hands
+  the launch over. The core jar stays whole inside stage 0, because unpacked its packages would be on the class path
+  twice (ModLauncher 9+ refuses that).
 - **Downloads are safe.**
   - Every jar is checked against the SHA-256 GitHub publishes for the release asset.
   - GitHub is asked at most once per `update.interval` (the unauthenticated API allows 60 calls an hour).

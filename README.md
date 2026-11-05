@@ -48,11 +48,11 @@ If a version no longer uses ModLauncher, it takes the NeoForge locator (`IModFil
 ## Layout
 - `stage0/`: the jar users install (`prometheus-<version>-minecraft.jar`). It only depends on the JDK, and should rarely change.
   - One hook per platform: Fabric `preLaunch`, the LaunchWrapper tweaker (Forge 1.8-1.12), a ModLauncher transformation service (Forge 1.14+ and NeoForge up to 1.21.1), and a NeoForge locator (FML 11+, which has no ModLauncher).
-  - The first hook to run downloads the core from this repo's latest release, verifies it and caches it, then starts it.
+  - The first hook to run starts the core this jar carries. That core looks for a newer one (this repo's latest release, verified and cached) and hands over to it, so the stage0 jar itself never goes out of date.
 - `stage0-legacy/`: half of the ModLauncher hook. The `void beginScanning` of ModLauncher 2-8 can't share a source file with the `List` one of 9+, so this half is compiled separately and swapped into the stage0 jar.
 - `core/`: the loader logic plus [minecraft-lib](https://github.com/prometheusreengineering/minecraft-lib) (`prometheus-core-<version>.jar`). It's downloaded and updated automatically, and loads the patches listed in `patches.json`.
 
-Everything goes to `<prometheus folder>/logs/` (`stage0.log`, `loader.log`), and downloads are cached in `<prometheus folder>/cache/`. The prometheus folder is `%APPDATA%/.minecraft/prometheus` on Windows.
+Everything goes to `<prometheus folder>/logs/loader.log` (stage 0's lines too), and downloads are cached in `<prometheus folder>/cache/`. The prometheus folder is `%APPDATA%/.minecraft/prometheus` on Windows.
 
 Settings, as `-Dprometheus.<key>=<value>` or `PROMETHEUS_<KEY>`:
 
@@ -60,7 +60,7 @@ Settings, as `-Dprometheus.<key>=<value>` or `PROMETHEUS_<KEY>`:
 |---|---|---|
 | `offline` | `false` | Never contact GitHub, use the cache |
 | `update.interval` | `60` | Minutes between update checks |
-| `core.path` | | Use this core jar instead of downloading one (development) |
+| `core.path` | | Use this core jar, even if older (development) |
 | `patch.<repo>.path` | | Use this jar for a patch, ex: `patch.minecraft-lunar.path` (development) |
 | `debug` | `false` | Debug lines in the logs |
 | `folder` | | Another prometheus folder |
@@ -74,7 +74,7 @@ Use JDK 21+. Everything still targets Java 8, but the platform APIs we compile a
 The tests run as part of `package`, and never need the network. `mvn verify` also checks coverage: each module's report is in `target/site/jacoco/index.html`.
 
 ## Releasing
-Attach **both** jars to a GitHub release. Stage 0 picks the newest `prometheus-core-*.jar` asset of the latest release and checks it against the SHA-256 GitHub publishes for it. Users only need a new stage0 jar if stage 0 itself changed.
+Attach **both** jars to a GitHub release. The core picks the `prometheus-core-*.jar` asset of the latest release, checks it against the SHA-256 GitHub publishes for it, and hands over to it if it's newer than itself. Users only need a new stage0 jar if stage 0 itself changed.
 
 ## Adding patches
 - Add your entry to `patches.json`

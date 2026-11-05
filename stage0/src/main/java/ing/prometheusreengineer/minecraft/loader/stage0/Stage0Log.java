@@ -1,29 +1,24 @@
 package ing.prometheusreengineer.minecraft.loader.stage0;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.io.Writer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
- * stdout plus {@code <prometheus folder>/logs/stage0.log}, overwritten once per launch. The core logs to
- * {@code loader.log} with minecraft-lib's {@code Log}; this is only what happens before (or instead of) it.
- * Never throws.
+ * Stage 0's log lines, which end up in the core's {@code loader.log}: kept until the core takes them through
+ * {@link #handOver}, then passed straight on. Until then each line also goes to stdout, which is in the game's log, so a
+ * core that never starts still leaves a trace. Stage 0 can't write a file of its own: finding the prometheus folder
+ * needs minecraft-lib's settings. Never throws.
  */
 public final class Stage0Log {
     private Stage0Log() {}
 
-    /**
-     * A system property, so the two hooks NeoForge 1.21.1 loads with different class loaders share one file.
-     */
-    private static final String STARTED = "prometheus.stage0.log.started";
+    private static final List<String[]> kept = new ArrayList<>();
+    private static BiConsumer<String, String> core;
 
     public static void info(String format, Object... args) {
         write("INFO", format(format, args), null);
@@ -37,22 +32,44 @@ public final class Stage0Log {
         write("ERROR", message, t);
     }
 
-    private static synchronized void write(String level, String message, Throwable t) {
-        String line = "[Prometheus/stage0] (" + level + ") " + message;
-        System.out.println(line);
-        if (t != null) t.printStackTrace(System.out);
+    /**
+     * What the core gets as {@code stage0Log}: it calls this with where the lines go (level, message), and gets the
+     * kept ones right away.
+     */
+    static synchronized void handOver(BiConsumer<String, String> sink) {
+        core = sink;
+        for (String[] line : kept) send(line[0], line[1]);
+        kept.clear();
+    }
 
-        try {
-            Path file = Settings.configFolder().resolve("logs").resolve("stage0.log");
-            Files.createDirectories(file.getParent());
-            boolean first = System.getProperties().putIfAbsent(STARTED, "true") == null;
-            try (Writer out = Files.newBufferedWriter(file, StandardCharsets.UTF_8, StandardOpenOption.CREATE, first ? StandardOpenOption.TRUNCATE_EXISTING : StandardOpenOption.APPEND)) {
-                out.write(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date()) + " " + line + System.lineSeparator());
-                if (t != null) out.write(stackTrace(t));
-            }
-        } catch (IOException | RuntimeException ignored) {
-            // stdout already has it
+    static Consumer<BiConsumer<String, String>> handOver() {
+        return Stage0Log::handOver;
+    }
+
+    private static synchronized void write(String level, String message, Throwable t) {
+        if (t != null) message += System.lineSeparator() + stackTrace(t);
+        if (core != null) {
+            send(level, message);
+            return;
         }
+        System.out.println("[Prometheus/stage0] (" + level + ") " + message);
+        kept.add(new String[]{level, message});
+    }
+
+    private static void send(String level, String message) {
+        try {
+            core.accept(level, message);
+        } catch (Throwable t) {
+            System.out.println("[Prometheus/stage0] (" + level + ") " + message);
+        }
+    }
+
+    /**
+     * Forgets the core and every kept line, for tests.
+     */
+    static synchronized void reset() {
+        core = null;
+        kept.clear();
     }
 
     private static String format(String format, Object[] args) {
@@ -67,6 +84,6 @@ public final class Stage0Log {
     private static String stackTrace(Throwable t) {
         StringWriter out = new StringWriter();
         t.printStackTrace(new PrintWriter(out));
-        return out.toString();
+        return out.toString().trim();
     }
 }

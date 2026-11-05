@@ -16,7 +16,8 @@ final class TestSupport {
 
     private static final String[] PROPERTIES = {
             "prometheus.folder", "prometheus.offline", "prometheus.update.interval", "prometheus.github.api",
-            "prometheus.patches.url", "prometheus.patch.minecraft-test.path",
+            "prometheus.patches.url", "prometheus.patch.minecraft-test.path", "prometheus.core.path",
+            "prometheus.core.repository",
     };
 
     /**

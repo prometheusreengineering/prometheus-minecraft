@@ -18,10 +18,8 @@ public final class TestSupport {
     private TestSupport() {}
 
     private static final String[] PROPERTIES = {
-            "prometheus.stage0.claimed", "prometheus.stage0.log.started", "prometheus.core.path", "prometheus.folder",
-            "prometheus.offline", "prometheus.update.interval", "prometheus.github.api", "prometheus.core.repository",
-            "test.bootstrap.throw", "test.bootstrap.broken", "test.bootstrap.jars", "test.bootstrap.configs",
-            "test.bootstrap.context",
+            "prometheus.stage0.claimed", "test.bootstrap.throw", "test.bootstrap.broken", "test.bootstrap.jars",
+            "test.bootstrap.configs", "test.bootstrap.context",
     };
 
     /**
@@ -40,15 +38,20 @@ public final class TestSupport {
     }
 
     /**
-     * Forgets every claim, setting and fake core instruction, then points the prometheus folder at {@code folder}.
+     * Forgets every claim, fake core instruction, log line and the embedded core.
      */
     public static void reset(Path folder) {
-        for (String property : PROPERTIES) System.getProperties().remove(property);
-        System.setProperty("prometheus.folder", folder.toString());
+        clear();
     }
 
     public static void clear() {
         for (String property : PROPERTIES) System.getProperties().remove(property);
+        Stage0Log.reset();
+        try {
+            Files.deleteIfExists(embeddedCore());
+        } catch (IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
     }
 
     /**
@@ -85,13 +88,26 @@ public final class TestSupport {
     }
 
     /**
-     * A core jar with the fake {@code ing.prometheusreengineer.minecraft.loader.core.Bootstrap}, used through
-     * {@code core.path}.
+     * A core jar with the fake {@code ing.prometheusreengineer.minecraft.loader.core.Bootstrap}, put where stage 0
+     * looks for the core it carries: {@code prometheus-core.jar} next to {@code Stage0.class}, in target/test-classes (the real one
+     * only goes into target/classes at prepare-package, after the tests).
      */
     public static Path fakeCore(Path folder) throws IOException {
         Path core = jarOf(folder.resolve("fake-core.jar"), ing.prometheusreengineer.minecraft.loader.core.Bootstrap.class);
-        System.setProperty("prometheus.core.path", core.toString());
+        Files.copy(core, embeddedCore(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         return core;
+    }
+
+    /**
+     * Where the stage 0 code under test finds its core: Stage0.class.getResourceAsStream("prometheus-core.jar").
+     */
+    static Path embeddedCore() throws IOException {
+        try {
+            Path testClasses = Paths.get(TestSupport.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+            return testClasses.resolve("ing/prometheusreengineer/minecraft/loader/stage0/prometheus-core.jar");
+        } catch (java.net.URISyntaxException e) {
+            throw new IOException(e);
+        }
     }
 
     public static byte[] bytes(InputStream in) throws IOException {

@@ -54,7 +54,7 @@ class ChildFirstClassLoaderTest {
     void everythingElseComesFromTheParent() throws Exception {
         try (ChildFirstClassLoader loader = loader()) {
             assertSame(String.class, loader.loadClass("java.lang.String"));
-            assertSame(Settings.class, loader.loadClass(Settings.class.getName()));
+            assertSame(Stage0Log.class, loader.loadClass(Stage0Log.class.getName()));
         }
     }
 

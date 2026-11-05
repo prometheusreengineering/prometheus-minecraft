@@ -15,9 +15,13 @@ Where this is going, why, and what's left: [docs/ROADMAP.md](docs/ROADMAP.md).
 ```
 installed: prometheus-<version>-minecraft.jar   (stage0/, JDK only, rarely changes)
    │  one hook per platform, the first to fire claims the JVM
-   │  downloads + verifies the core, or uses the cached one
+   │  unpacks the core it carries (prometheus-core.jar inside it) and starts it
    ▼
-GitHub release of this repo: prometheus-core-<version>.jar   (core/ + minecraft-lib, unrenamed)
+the carried core: prometheus-core-<version>.jar   (core/ + minecraft-lib, unrenamed)
+   │  finds the newest core: core.path, the cache, or this repo's latest GitHub release
+   │  newer than itself → starts that one instead (the hand-off) and stops
+   ▼
+the newest core
    │  reads patches.json, keeps the patches whose target class is present
    │  downloads + verifies each, adds it to the class path, registers its mixin configs
    ▼
@@ -26,9 +30,17 @@ GitHub release of each patch repo: the patch jar
 
 - **Stage 0 → core** passes only JDK types: `Bootstrap.run(Map<String, Object>)`, called by reflection. The core
   runs in a child-first class loader. The keys are documented on `Stage0.CONTRACT`.
+- **Stage 0 carries a whole core jar, not its classes** (the EssentialLoader approach). Unpacked, the core and the lib
+  would be on the game's class path twice, which ModLauncher 9+ refuses. Stage 0 extracts it to
+  `<tmp>/prometheus/core-<sha256>.jar` (named by content, so it never writes over an open jar).
+- **The hand-off** (`Bootstrap.handOff`): the carried core starts a newer one in a child-first loader that is its
+  sibling (same parent, stage 0's loader), with `handedOffBy` and the new `coreJar` added to the map. A core with
+  `handedOffBy` never looks again. So updates to the core, and to how cores are found, never need a new stage 0.
 - **The core is the only copy of minecraft-lib in the game.** It puts its own jar on the class path, so patches
   compile against the lib as `provided`. The core calls `Log.setOwner("loader")`.
-- **Logs:** `<prometheus folder>/logs/stage0.log` (stage 0) and `loader.log` (core). The prometheus folder is
+- **Logs:** `<prometheus folder>/logs/loader.log`. Stage 0 can't find that folder without the lib, so it keeps its
+  lines (and prints them to stdout, the game's log) until the core takes them through `stage0Log`; they appear as
+  `Prometheus/loader/stage0`. Stage 0 1.x wrote `stage0.log`. The prometheus folder is
   `%APPDATA%/.minecraft/prometheus` on Windows (`OS.getConfigFolder()`).
 - **Caches:** `<prometheus folder>/cache/`: `core/`, `patches/<repo>/`, `patches.json`. Each keeps a `.properties`
   file with the tag, the asset, the file and its SHA-256.
@@ -38,8 +50,8 @@ GitHub release of each patch repo: the patch jar
 | Module | Artifact | What |
 |---|---|---|
 | `stage0-legacy/` | `prometheus-stage0-legacy` | The ModLauncher 2-8 half of the transformation service (`LegacyBase`), compiled against ModLauncher 8.0.9. |
-| `stage0/` | `prometheus` → `prometheus-<version>-minecraft.jar` | The jar users install. The platform hooks, `CoreResolver`, and copies of `Settings`/`OS` (in `Settings.java`). |
-| `core/` | `prometheus-core` → `prometheus-core-<version>.jar` | `Bootstrap` (patch loading) and `ReleaseResolver` (patch jars), with minecraft-lib shaded in, unrenamed. |
+| `core/` | `prometheus-core` → `prometheus-core-<version>.jar` | `Bootstrap` (hand-off and patch loading) and `ReleaseResolver` (core and patch jars), with minecraft-lib shaded in, unrenamed. |
+| `stage0/` | `prometheus` → `prometheus-<version>-minecraft.jar` | The jar users install. The platform hooks, and the core jar it carries (`prometheus-core.jar` next to `Stage0`, copied in at `prepare-package`). |
 
 ### Stage 0 hooks (`stage0/src/main/java/ing/prometheusreengineer/minecraft/loader/stage0/`)
 
@@ -79,8 +91,8 @@ GitHub release of each patch repo: the patch jar
   `ModLauncherHook.isJava21()` is the one deliberate check, done by reflection.
 - **Stage 0 almost never changes.** Users only get a new stage 0 by reinstalling, so anything that can live in the
   core goes in the core. Stage 0 depends on nothing but the JDK and the platform APIs its hooks implement (all
-  `provided`). It must not use minecraft-lib, so `Settings.java` and `Stage0Log` are its own copies. **Keep
-  `Settings`/`OS` in sync with the lib.**
+  `provided`). It must not use minecraft-lib, and doesn't need to: it reads no settings and makes no network calls.
+  Its `prometheus-core` dependency only orders the reactor (no transitive dependencies, excluded from the tests).
 - **The stage 0 ↔ core contract only grows.** An old stage 0 can run a new core, and the other way round. Only add
   keys to the map, bump `Stage0.CONTRACT` when you do, and make the core cope with a key that's missing. Never rename
   or remove `Bootstrap.run(Map)`.
@@ -105,7 +117,7 @@ GitHub release of each patch repo: the patch jar
 |---|---|---|
 | `offline` | `false` | Never contact GitHub, use the cache |
 | `update.interval` | `60` | Minutes between update checks |
-| `core.path` | | Use this core jar instead of downloading one |
+| `core.path` | | Hand off to this core jar, even if older |
 | `patch.<repo>.path` | | Use this jar for a patch, ex: `patch.minecraft-lunar.path` |
 | `core.repository` | `prometheusreengineering/prometheus-minecraft` | `owner/repo` the core is downloaded from |
 | `patches.url` | raw `patches.json` on `main` | Where the core reads the patch list |
@@ -150,15 +162,19 @@ JUnit 5 in each module's `src/test/java`, run by `mvn test` (and so by `mvn pack
   - Keep it that way: every new line gets a test.
 - **Package-private seams:** a path a test can't reach on its own gets one, and the public behavior stays the same.
   - `ModLauncherHook.modern`
-  - `CoreResolver.moveIntoPlace(.., Mover)` and `digest(String)`
+  - `Stage0.run(.., InputStream embedded)`, `extract(InputStream, Path)` and `digest(String)`
+  - `Bootstrap.handOff(Map, ClassLoader parent)`, `newer(String, String)` and `jarVersion(Path)`
   - `LegacyLocator.unclaimed(.., owner, field)` and `url(String)`
   - `LaunchWrapperHook.url(URI)`
   - `Stage0.version(InputStream)` and `Bootstrap.version(InputStream)`
-  - the file helpers in `CoreResolver` and `ReleaseResolver`
-- **`FakeGitHub`:** the releases API, asset downloads (whole, chunked and cut short) and `patches.json` on the
-  loopback address. Each module has its own copy.
+  - the file helpers in `ReleaseResolver`
+- **`FakeGitHub`** (core): the releases API, asset downloads (whole, chunked and cut short) and `patches.json` on the
+  loopback address.
+- **The hand-off tests** (`HandOffTest`) jar the core's own compiled classes with a chosen `core.properties` version,
+  and compile small fake `Bootstrap`s with `javax.tools`.
 - **Stage 0's fake core:** `stage0/src/test/java/ing/prometheusreengineer/minecraft/loader/core/Bootstrap.java`.
-  - `TestSupport.fakeCore` jars it, and points `core.path` at that jar.
+  - `TestSupport.fakeCore` jars it into `target/test-classes/.../stage0/prometheus-core.jar`, where stage 0 looks for
+    the core it carries (the real one only reaches `target/classes` at `prepare-package`). `clear()` deletes it.
   - It loads in stage 0's child-first class loader, so tests drive it through `test.bootstrap.*` system properties.
 - **Test folders:** tests that load a jar (stage 0 never closes the core's class loader) or write `loader.log` use
   `TestSupport.folder()` under `target/test-folders`, not `@TempDir`, because Windows won't delete a file that's
@@ -167,15 +183,15 @@ JUnit 5 in each module's `src/test/java`, run by `mvn test` (and so by `mvn pack
   - a `LaunchClassLoader`
   - Fabric's `FabricLoaderImpl` and launcher, set by reflection
   - NeoForge's interfaces as JDK proxies
-- **Test-only dependencies:** minecraft-lib (for `Env`, to set environment variables) and SLF4J (which NeoForge's
-  classes need).
+- **Test-only dependencies:** SLF4J (which NeoForge's classes need).
 
 Beyond the tests:
 
 - **In game:**
-  - Put only the stage 0 jar in `mods/`, and start with
+  - Put only the stage 0 jar in `mods/`. It carries the core it was built with; to try another core, start with
     `-Dprometheus.core.path=<path>/core/target/prometheus-core-<version>.jar`.
-  - Check `stage0.log` for which hook fired and `loader.log` for `N applicable patches` and `<patch>: loaded`.
+  - Check `loader.log` for which hook fired (`Prometheus/loader/stage0`), the hand-off, `N applicable patches` and
+    `<patch>: loaded`.
   - Record the result in the README's **Compatibility** tables.
 - **ModLauncher internals:** the ModLauncher jars are on Maven (`cpw.mods:modlauncher`,
   `net.minecraftforge:modlauncher`, `net.neoforged.fancymodloader:loader`). Their classes can be read with `javap`.
@@ -184,8 +200,8 @@ Beyond the tests:
 
 ## Releasing
 
-Attach **both** jars to a GitHub release. Stage 0 takes the newest `prometheus-core-*.jar` asset of the latest
-release. Users only need a new stage 0 jar when stage 0 itself changed.
+Attach **both** jars to a GitHub release. The core takes the `prometheus-core-*.jar` asset of the latest release and
+hands off to it when it's newer than itself. Users only need a new stage 0 jar when stage 0 itself changed.
 
 ## Style
 
