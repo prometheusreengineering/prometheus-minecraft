@@ -1,6 +1,6 @@
 package ing.prometheusreengineer.minecraft.loader.stage0;
 
-import ing.prometheusreengineer.minecraft.util.Env;
+import ing.prometheusreengineer.minecraft.util.os.Env;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
