@@ -17,7 +17,6 @@
     <artifactId>prometheus-core</artifactId>
 
     <dependencies>
-        <!-- build it first: mvn install in ../minecraft-lib -->
         <dependency>
             <groupId>ing.prometheusreengineer.minecraft</groupId>
             <artifactId>minecraft-lib</artifactId>
