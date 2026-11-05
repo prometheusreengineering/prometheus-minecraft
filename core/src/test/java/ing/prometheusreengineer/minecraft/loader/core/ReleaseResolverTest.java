@@ -1,6 +1,6 @@
 package ing.prometheusreengineer.minecraft.loader.core;
 
-import ing.prometheusreengineer.minecraft.util.Hashing;
+import ing.prometheusreengineer.minecraft.util.http.Hashing;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

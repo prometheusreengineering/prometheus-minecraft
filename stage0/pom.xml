@@ -95,7 +95,7 @@
         <dependency>
             <groupId>ing.prometheusreengineer.minecraft</groupId>
             <artifactId>minecraft-lib</artifactId>
-            <version>1.0.0</version>
+            <version>${minecraft-lib.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
