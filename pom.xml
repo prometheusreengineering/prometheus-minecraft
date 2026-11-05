@@ -47,6 +47,10 @@
 
     <repositories>
         <repository>
+            <id>prometheus</id>
+            <url>https://maven.prometheusreengineer.ing/</url>
+        </repository>
+        <repository>
             <id>spongepowered-repo</id>
             <url>https://repo.spongepowered.org/maven/</url>
         </repository>
