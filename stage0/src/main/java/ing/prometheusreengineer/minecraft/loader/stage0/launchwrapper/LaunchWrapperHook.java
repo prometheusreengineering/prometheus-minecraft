@@ -1,5 +1,6 @@
 package ing.prometheusreengineer.minecraft.loader.stage0.launchwrapper;
 
+import ing.prometheusreengineer.minecraft.loader.stage0.Loader;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 import org.spongepowered.asm.mixin.Mixins;
@@ -27,9 +28,8 @@ public class LaunchWrapperHook implements ITweaker {
     @SuppressWarnings("Convert2MethodRef") //explained below
     @Override
     public void injectIntoClassLoader(LaunchClassLoader launchClassLoader) {
-        if (!Stage0.claim("launchwrapper")) return;
         Path dir = gameDir != null ? gameDir : Paths.get("").toAbsolutePath();
-        Stage0.run("launchwrapper", dir,
+        Stage0.run(Loader.LAUNCHWRAPPER, dir,
                 jar -> launchClassLoader.addURL(url(jar.toUri())),
                 // a lambda, not Mixins::addConfiguration: Forge 1.8.9 has no Mixin unless a mod brings it
                 config -> Mixins.addConfiguration(config));

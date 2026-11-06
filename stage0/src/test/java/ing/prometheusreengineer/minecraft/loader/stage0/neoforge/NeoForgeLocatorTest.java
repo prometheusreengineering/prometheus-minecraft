@@ -5,7 +5,6 @@ import net.neoforged.neoforgespi.locating.IDiscoveryPipeline;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ing.prometheusreengineer.minecraft.loader.stage0.Stage0;
 import ing.prometheusreengineer.minecraft.loader.stage0.TestSupport;
 
 import java.io.IOException;
@@ -54,7 +53,8 @@ class NeoForgeLocatorTest {
 
     @Test
     void anotherHookAlreadyRan() {
-        Stage0.claim("modlauncher");
+        // what Stage0's claim leaves behind
+        System.setProperty("prometheus.stage0.claimed", "modlauncher");
         new NeoForgeLocator().findCandidates((ILaunchContext) null, pipeline);
         assertTrue(added.isEmpty());
         assertNull(System.getProperties().get("test.bootstrap.context"));

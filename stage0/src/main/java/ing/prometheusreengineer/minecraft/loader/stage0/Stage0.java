@@ -43,8 +43,7 @@ public final class Stage0 {
      * A system property rather than a static field: NeoForge 1.21.1 calls both our ModLauncher service and our locator,
      * and loads them with different class loaders, so each would see its own static.
      */
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted") //intellij overthinking it
-    public static boolean claim(String hook) {
+    private static boolean claim(String hook) {
         Object first = System.getProperties().putIfAbsent(CLAIM, hook);
         if (first == null) return true;
         Stage0Log.info("%s hook skipped, %s already started Prometheus", hook, first);
@@ -54,9 +53,10 @@ public final class Stage0 {
     /**
      * Never throws: a broken core means no patches this launch, not a crashed game.
      */
-    public static void run(String platform, Path gameDir, Consumer<Path> addToClasspath, Consumer<String> addMixinConfig) {
+    public static void run(Loader platform, Path gameDir, Consumer<Path> addToClasspath, Consumer<String> addMixinConfig) {
+        if (!claim(platform.id)) return;
         try {
-            Stage0Log.info("stage0 %s on %s, java %s", version(), platform, System.getProperty("java.version"));
+            Stage0Log.info("stage0 %s on %s, java %s", version(), platform.id, System.getProperty("java.version"));
             Path core = CoreResolver.resolve();
             if (core == null) {
                 Stage0Log.warn("Prometheus is off for this launch");
@@ -66,7 +66,7 @@ public final class Stage0 {
             Map<String, Object> context = new HashMap<>();
             context.put("contract", CONTRACT);
             context.put("stage0Version", version());
-            context.put("platform", platform);
+            context.put("platform", platform.id);
             context.put("gameDir", gameDir);
             context.put("coreJar", core);
             context.put("addToClasspath", addToClasspath);

@@ -6,7 +6,6 @@ import net.fabricmc.loader.impl.launch.FabricLauncherBase;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ing.prometheusreengineer.minecraft.loader.stage0.Stage0;
 import ing.prometheusreengineer.minecraft.loader.stage0.TestSupport;
 
 import java.io.IOException;
@@ -82,7 +81,8 @@ class FabricHookTest {
 
     @Test
     void anotherHookAlreadyRan() {
-        Stage0.claim("modlauncher");
+        // what Stage0's claim leaves behind
+        System.setProperty("prometheus.stage0.claimed", "modlauncher");
         new FabricHook().onPreLaunch();
         assertNull(context());
     }
