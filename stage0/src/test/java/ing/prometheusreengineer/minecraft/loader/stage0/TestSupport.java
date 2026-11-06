@@ -19,7 +19,7 @@ public final class TestSupport {
 
     private static final String[] PROPERTIES = {
             "prometheus.stage0.claimed", "prometheus.stage0.log.started", "prometheus.core.path", "prometheus.folder",
-            "prometheus.offline", "prometheus.update.interval", "prometheus.github.api", "prometheus.core.repository",
+            "prometheus.offline", "prometheus.update.interval", "prometheus.core.url",
             "test.bootstrap.throw", "test.bootstrap.broken", "test.bootstrap.jars", "test.bootstrap.configs",
             "test.bootstrap.context",
     };

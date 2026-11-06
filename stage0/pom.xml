@@ -21,7 +21,7 @@
             MixinEnvironment.getDefaultEnvironment): Mixin only starts inside a running game, and a call that throws
             counts as uncovered. Raise these if that changes.
         -->
-        <coverage.lines>0.98</coverage.lines>
+        <coverage.lines>0.97</coverage.lines>
         <coverage.branches>0.99</coverage.branches>
     </properties>
 

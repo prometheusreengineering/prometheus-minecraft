@@ -18,28 +18,30 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Finds the core jar: the newest {@code prometheus-core-*.jar} from this repo's latest GitHub release, cached in
+ * Finds the core jar: {@code prometheus-core.jar} of this repo's latest GitHub release, cached in
  * {@code <prometheus folder>/cache/core/}.
  * <ul>
- *     <li>GitHub is asked at most once per {@code update.interval} minutes (default 60); the unauthenticated API
- *     allows 60 calls an hour per IP, and the core asks again for every patch.</li>
- *     <li>Every jar is checked against the SHA-256 GitHub publishes for the asset ({@code digest}), and the cached one
- *     against the hash stored when it was downloaded.</li>
+ *     <li>Two fixed URLs and no JSON: GitHub redirects {@code releases/latest/download/<asset>} to the latest release's
+ *     asset. That isn't the REST API, so it doesn't use up the patches' 60 calls an hour.</li>
+ *     <li>{@code prometheus-core.jar.sha256} says which core is the latest, and is read at most once per
+ *     {@code update.interval} minutes (default 60). The jar is only downloaded when that hash changes.</li>
+ *     <li>Every download is checked against that hash, and the cached jar against the hash stored when it was
+ *     downloaded.</li>
  *     <li>Offline, or if GitHub fails, the last verified jar is used. Without one, Prometheus is off this launch.</li>
  * </ul>
  * Settings: {@code core.path} (use this jar, for development), {@code offline}, {@code update.interval},
- * {@code core.repository}, {@code github.api} (for tests or a mirror), {@code http.timeout} (ms).
+ * {@code core.url} (another jar, with its {@code .sha256} next to it), {@code http.timeout} (ms).
  */
 final class CoreResolver {
     private CoreResolver() {}
 
-    private static final String ASSET_PREFIX = "prometheus-core-";
+    private static final String CORE_URL = "https://github.com/prometheusreengineering/prometheus-minecraft/releases/latest/download/prometheus-core.jar";
+    private static final String FILE_PREFIX = "prometheus-core-";
     private static final String USER_AGENT = "Prometheus-Minecraft-Stage0 (+https://github.com/prometheusreengineering)";
 
     /**
@@ -77,7 +79,7 @@ final class CoreResolver {
         }
 
         if (cached != null) {
-            Stage0Log.info("using cached core %s (%s)", cached.getFileName(), state.getProperty("tag"));
+            Stage0Log.info("using cached core %s", cached.getFileName());
         } else {
             Stage0Log.warn("no verified core in %s", dir);
         }
@@ -85,54 +87,40 @@ final class CoreResolver {
     }
 
     private static Path update(Path dir, Path stateFile, Properties state, Path cached) throws IOException {
-        String repository = Settings.get("core.repository", "prometheusreengineering/prometheus-minecraft");
-        String api = Settings.get("github.api", "https://api.github.com");
-
-        Map<?, ?> release = (Map<?, ?>) MiniJson.parse(new String(get(api + "/repos/" + repository + "/releases/latest"), StandardCharsets.UTF_8));
-        String tag = (String) release.get("tag_name");
-        Map<?, ?> asset = coreAsset(release);
-        String name = (String) asset.get("name");
-        String digest = (String) asset.get("digest"); // "sha256:<hex>", absent on releases made before GitHub added it
+        String url = Settings.get("core.url", CORE_URL);
+        String sha256 = parseSha256(new String(get(url + ".sha256"), StandardCharsets.UTF_8));
 
         Path result;
-        if (cached != null && tag.equals(state.getProperty("tag")) && name.equals(state.getProperty("asset"))) {
-            Stage0Log.info("core %s (%s) is up to date", name, tag);
+        if (cached != null && sha256.equals(state.getProperty("sha256"))) {
+            Stage0Log.info("core %s is up to date", cached.getFileName());
             result = cached;
         } else {
             // Never write over a jar that may be open: another running game holds it (Windows won't replace it then),
             // and so does an earlier load in this JVM. A taken name (a corrupted copy) gets a fresh one instead.
-            Path target = dir.resolve(name);
-            if (Files.exists(target))
-                target = dir.resolve(name.substring(0, name.length() - ".jar".length()) + "-" + System.currentTimeMillis() + ".jar");
+            Path target = dir.resolve(FILE_PREFIX + sha256 + ".jar");
+            if (Files.exists(target)) target = dir.resolve(FILE_PREFIX + sha256 + "-" + System.currentTimeMillis() + ".jar");
 
-            Stage0Log.info("downloading core %s (%s)", name, tag);
-            String sha256 = download((String) asset.get("browser_download_url"), target, digest);
-            if (digest == null)
-                Stage0Log.warn("release %s publishes no digest, trusting the download (%s)", tag, sha256);
+            Stage0Log.info("downloading core %s", sha256);
+            download(url, target, sha256);
             state.setProperty("sha256", sha256);
-            state.setProperty("asset", name);
             state.setProperty("file", target.getFileName().toString());
             deleteOtherCores(dir, target);
             result = target;
         }
 
-        state.setProperty("tag", tag);
         state.setProperty("checkedAt", Long.toString(System.currentTimeMillis()));
         save(stateFile, state);
         return result;
     }
 
-    private static Map<?, ?> coreAsset(Map<?, ?> release) throws IOException {
-        Object assets = release.get("assets");
-        if (assets instanceof List) {
-            for (Object asset : (List<?>) assets) {
-                Object name = asset instanceof Map ? ((Map<?, ?>) asset).get("name") : null;
-                if (name instanceof String && ((String) name).startsWith(ASSET_PREFIX) && ((String) name).endsWith(".jar")) {
-                    return (Map<?, ?>) asset;
-                }
-            }
-        }
-        throw new IOException("release " + release.get("tag_name") + " has no " + ASSET_PREFIX + "*.jar");
+    /**
+     * Just the hash, or {@code sha256sum}'s output ({@code <hash>  <file>}). Anything else, like an error page served
+     * with a 200, must not count as a new core.
+     */
+    static String parseSha256(String text) throws IOException {
+        String hash = text.trim().split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
+        if (!hash.matches("[0-9a-f]{64}")) throw new IOException("not a sha256: " + hash);
+        return hash;
     }
 
     /**
@@ -161,7 +149,6 @@ final class CoreResolver {
         connection.setReadTimeout(timeout);
         connection.setInstanceFollowRedirects(true);
         connection.setRequestProperty("User-Agent", USER_AGENT);
-        connection.setRequestProperty("Accept", "application/vnd.github+json");
         int status = connection.getResponseCode();
         if (status >= 400) {
             connection.disconnect();
@@ -183,11 +170,9 @@ final class CoreResolver {
 
     /**
      * Into a temp file next to {@code target}, then moved over it, so a failed download never replaces anything.
-     * Checks the byte count (a server hanging up early can look like a normal end of stream) and {@code digest}.
-     *
-     * @return the SHA-256 of what was downloaded
+     * Checks the byte count (a server hanging up early can look like a normal end of stream) and the hash.
      */
-    private static String download(String url, Path target, String digest) throws IOException {
+    private static void download(String url, Path target, String expected) throws IOException {
         Files.createDirectories(target.getParent());
         Path tmp = Files.createTempFile(target.getParent(), target.getFileName().toString() + ".", ".tmp");
         HttpURLConnection connection = open(url);
@@ -202,11 +187,10 @@ final class CoreResolver {
                 throw new IOException("incomplete download from " + url + ": got " + copied + " of " + length + " bytes");
             }
             String actual = hex(sha256.digest());
-            if (digest != null && !actual.equalsIgnoreCase(digest.substring(digest.indexOf(':') + 1).trim())) {
-                throw new IOException("sha256 mismatch for " + url + ": expected " + digest + ", got " + actual);
+            if (!actual.equals(expected)) {
+                throw new IOException("sha256 mismatch for " + url + ": expected " + expected + ", got " + actual);
             }
             moveIntoPlace(tmp, target, Files::move);
-            return actual;
         } finally {
             connection.disconnect();
             Files.deleteIfExists(tmp);
@@ -245,7 +229,7 @@ final class CoreResolver {
      * Best effort: a jar another running game still has open stays until a later launch.
      */
     static void deleteOtherCores(Path dir, Path keep) {
-        try (DirectoryStream<Path> jars = Files.newDirectoryStream(dir, ASSET_PREFIX + "*.jar")) {
+        try (DirectoryStream<Path> jars = Files.newDirectoryStream(dir, FILE_PREFIX + "*.jar")) {
             for (Path jar : jars) {
                 if (jar.equals(keep)) continue;
                 try {

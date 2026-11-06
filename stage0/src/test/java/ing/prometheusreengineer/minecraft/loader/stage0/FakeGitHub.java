@@ -8,48 +8,66 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * GitHub's releases API and asset downloads on the loopback address. Never touches the network.
+ * GitHub's {@code releases/latest/download/<asset>} on the loopback address, redirects included. Never touches the
+ * network.
  */
 public final class FakeGitHub implements AutoCloseable {
+    private static final String JAR = "/latest/prometheus-core.jar";
+
     private final HttpServer server;
-    private final Map<String, byte[]> files = new ConcurrentHashMap<>();
-    public final AtomicInteger releaseCalls = new AtomicInteger();
-    public volatile int releaseStatus = 200;
-    public volatile String releaseJson = "{}";
+    public final AtomicInteger hashCalls = new AtomicInteger();
+    public final AtomicInteger jarCalls = new AtomicInteger();
+    public volatile int status = 200;
+    public volatile String hash = "";
+    public volatile byte[] jar = new byte[0];
+    /**
+     * How the jar is sent: {@code whole}, {@code chunked} (no length) or {@code truncated}.
+     */
+    public volatile String route = "whole";
 
     public FakeGitHub() throws IOException {
         server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
-        server.createContext("/repos/", exchange -> {
-            releaseCalls.incrementAndGet();
-            if (releaseStatus != 200) {
-                exchange.sendResponseHeaders(releaseStatus, -1);
-                exchange.close();
-                return;
-            }
-            send(exchange, releaseJson.getBytes(StandardCharsets.UTF_8), false);
+        server.createContext(JAR + ".sha256", exchange -> {
+            hashCalls.incrementAndGet();
+            redirectTo(exchange, "/asset/hash");
         });
-        server.createContext("/download/", exchange -> {
-            byte[] file = files.get(exchange.getRequestURI().getPath().substring("/download/".length()));
-            if (file == null) {
-                exchange.sendResponseHeaders(404, -1);
-                exchange.close();
-                return;
-            }
-            send(exchange, file, false);
+        server.createContext(JAR, exchange -> {
+            jarCalls.incrementAndGet();
+            redirectTo(exchange, "/asset/jar");
         });
-        server.createContext("/chunked/", exchange -> send(exchange, files.get(exchange.getRequestURI().getPath().substring("/chunked/".length())), true));
-        server.createContext("/truncated/", exchange -> {
-            // promises more than it sends, then hangs up
-            exchange.sendResponseHeaders(200, 1000);
-            exchange.getResponseBody().write(new byte[10]);
-            exchange.close();
+        server.createContext("/asset/hash", exchange -> {
+            if (status != 200) refuse(exchange);
+            else send(exchange, hash.getBytes(StandardCharsets.UTF_8), false);
+        });
+        server.createContext("/asset/jar", exchange -> {
+            if (status != 200) refuse(exchange);
+            else if (route.equals("truncated")) truncated(exchange);
+            else send(exchange, jar, route.equals("chunked"));
         });
         server.start();
+    }
+
+    private static void redirectTo(HttpExchange exchange, String path) throws IOException {
+        exchange.getResponseHeaders().set("Location", path);
+        exchange.sendResponseHeaders(302, -1);
+        exchange.close();
+    }
+
+    private void refuse(HttpExchange exchange) throws IOException {
+        exchange.sendResponseHeaders(status, -1);
+        exchange.close();
+    }
+
+    /**
+     * Promises more than it sends, then hangs up.
+     */
+    private static void truncated(HttpExchange exchange) throws IOException {
+        exchange.sendResponseHeaders(200, 1000);
+        exchange.getResponseBody().write(new byte[10]);
+        exchange.close();
     }
 
     private static void send(HttpExchange exchange, byte[] body, boolean chunked) throws IOException {
@@ -59,24 +77,16 @@ public final class FakeGitHub implements AutoCloseable {
         }
     }
 
-    public String api() {
-        return "http://127.0.0.1:" + server.getAddress().getPort();
+    public String url() {
+        return "http://127.0.0.1:" + server.getAddress().getPort() + JAR;
     }
 
     /**
-     * Serves {@code jar} at {@code /<route>/<name>}, and makes it the only asset of the latest release.
-     *
-     * @param digest the asset's {@code digest}, or null for none (releases from before GitHub added it)
+     * Makes {@code jar} the latest release's core, published with {@code hash}.
      */
-    public void release(String tag, String name, byte[] jar, String digest, String route) {
-        files.put(name, jar);
-        releaseJson = "{\"tag_name\":\"" + tag + "\",\"assets\":[{\"name\":\"" + name + "\","
-                + (digest == null ? "" : "\"digest\":\"" + digest + "\",")
-                + "\"browser_download_url\":\"" + api() + "/" + route + "/" + name + "\"}]}";
-    }
-
-    public void release(String tag, String name, byte[] jar, String digest) {
-        release(tag, name, jar, digest, "download");
+    public void release(byte[] jar, String hash) {
+        this.jar = jar;
+        this.hash = hash;
     }
 
     @Override
