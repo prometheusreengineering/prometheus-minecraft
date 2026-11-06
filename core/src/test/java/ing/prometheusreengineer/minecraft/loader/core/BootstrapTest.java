@@ -8,7 +8,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BootstrapTest {
     private Path folder;
     private FakeGitHub github;
-    private Path coreJar;
 
     private final List<Path> classpath = new ArrayList<>();
     private final List<String> configs = new ArrayList<>();
@@ -36,7 +34,6 @@ class BootstrapTest {
         github = new FakeGitHub();
         System.setProperty("prometheus.github.api", github.api());
         System.setProperty("prometheus.patches.url", github.api() + "/patches.json");
-        coreJar = TestSupport.jar(folder.resolve("prometheus-core-test.jar"), "ing/prometheusreengineer/minecraft/loader/core/Bootstrap.class");
     }
 
     @AfterEach
@@ -47,11 +44,12 @@ class BootstrapTest {
 
     private Map<String, Object> context() {
         Map<String, Object> context = new HashMap<>();
-        context.put("contract", 1);
+        context.put("contract", 3);
         context.put("stage0Version", "test");
         context.put("platform", "test");
         context.put("gameDir", folder);
-        context.put("coreJar", coreJar);
+        context.put("coreJar", folder.resolve("prometheus-core-test.jar"));
+        context.put("libVersion", "1.2.0");
         context.put("addToClasspath", (Consumer<Path>) jar -> {
             if (jar.getFileName().toString().startsWith("broken")) throw new IllegalStateException("can't add " + jar);
             classpath.add(jar);
@@ -86,7 +84,7 @@ class BootstrapTest {
 
         Bootstrap.run(context());
 
-        assertEquals(java.util.Arrays.asList("prometheus-core-test.jar", "present-1.jar"), loaded(), "core first, then the patches");
+        assertEquals(Collections.singletonList("present-1.jar"), loaded());
         assertEquals(Collections.singletonList("present.mixins.json"), configs);
     }
 
@@ -99,31 +97,31 @@ class BootstrapTest {
 
         System.setProperty("prometheus.offline", "true");
         Bootstrap.run(context());
-        assertEquals(java.util.Arrays.asList("prometheus-core-test.jar", "present-1.jar"), loaded());
+        assertEquals(Collections.singletonList("present-1.jar"), loaded());
     }
 
     @Test
     void noPatchListAtAll() {
         // patches.json answers 404 and nothing is cached
         Bootstrap.run(context());
-        assertEquals(Collections.singletonList("prometheus-core-test.jar"), loaded());
+        assertTrue(loaded().isEmpty());
 
         classpath.clear();
         System.setProperty("prometheus.offline", "true");
         Bootstrap.run(context());
-        assertEquals(Collections.singletonList("prometheus-core-test.jar"), loaded());
+        assertTrue(loaded().isEmpty());
     }
 
     @Test
     void anUnreadablePatchList() {
         github.patchesJson = "{ not a list";
         Bootstrap.run(context());
-        assertEquals(Collections.singletonList("prometheus-core-test.jar"), loaded());
+        assertTrue(loaded().isEmpty());
 
         classpath.clear();
         github.patchesJson = "null";
         Bootstrap.run(context());
-        assertEquals(Collections.singletonList("prometheus-core-test.jar"), loaded());
+        assertTrue(loaded().isEmpty());
     }
 
     @Test
@@ -144,7 +142,7 @@ class BootstrapTest {
     @Test
     void aBrokenContextIsOnlyLogged() {
         Map<String, Object> context = context();
-        context.remove("coreJar");
+        context.put("addToClasspath", "not a consumer");
         assertDoesNotThrow(() -> Bootstrap.run(context));
         assertTrue(classpath.isEmpty());
     }
@@ -168,6 +166,5 @@ class BootstrapTest {
         assertEquals("Essential", patch.name);
         assertEquals("minecraft-essential", patch.repositoryName);
         assertEquals(1, patch.classPaths.size());
-        assertTrue(Files.exists(coreJar));
     }
 }

@@ -13,8 +13,8 @@
 
     <!--
         stage0-legacy: the ModLauncher 2-8 half of the transformation service (see stage0's ModLauncherHook)
-        core:          the loader logic + minecraft-lib. Auto-updated from GitHub releases.
-        stage0:        the jar users install. JDK only, rarely changes. Carries a core and starts it.
+        core:          the loader logic, on minecraft-lib (provided). Stage 1 downloads it from GitHub releases.
+        stage0:        the jar users install. JDK only, rarely changes. Carries minecraft-lib and starts its stage 1.
     -->
     <modules>
         <module>stage0-legacy</module>
@@ -33,6 +33,11 @@
         <junit.version>5.11.4</junit.version>
         <coverage.lines>1.0</coverage.lines>
         <coverage.branches>1.0</coverage.branches>
+        <!--
+            The lib stage 0 carries, and the one the core is built against (its core.properties lib.version: stage 1
+            refuses the core on an older lib, or another major). Deploy it to Maven before releasing either.
+        -->
+        <minecraft-lib.version>1.2.0</minecraft-lib.version>
     </properties>
 
     <!-- every module's tests -->

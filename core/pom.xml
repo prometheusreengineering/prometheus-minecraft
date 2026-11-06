@@ -11,8 +11,8 @@
     </parent>
 
     <!--
-        prometheus-core-<version>.jar: attach it to this repo's GitHub release, stage 0 picks the newest
-        prometheus-core-*.jar asset. Contains minecraft-lib with its package unchanged (the one copy in a game).
+        prometheus-core-<version>.jar: attach it to this repo's GitHub release, stage 1 (in minecraft-lib) takes the
+        prometheus-core-*.jar asset of the latest one. The lib isn't in it: stage 1 provides it.
     -->
     <artifactId>prometheus-core</artifactId>
 
@@ -20,7 +20,9 @@
         <dependency>
             <groupId>ing.prometheusreengineer.minecraft</groupId>
             <artifactId>minecraft-lib</artifactId>
-            <version>1.1.0</version>
+            <version>${minecraft-lib.version}</version>
+            <!-- stage 1's, which this core shares -->
+            <scope>provided</scope>
         </dependency>
         <!-- the game's; 2.2.4 is 1.8.9's, so only API that it already has -->
         <dependency>
@@ -54,37 +56,6 @@
                         </manifestEntries>
                     </archive>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <!-- no relocation: patches compile against these exact package names -->
-                            <artifactSet>
-                                <includes>
-                                    <include>ing.prometheusreengineer.minecraft:minecraft-lib</include>
-                                </includes>
-                            </artifactSet>
-                            <filters>
-                                <filter>
-                                    <!-- only the lib's: the core's own manifest carries FMLModType and the module name -->
-                                    <artifact>ing.prometheusreengineer.minecraft:minecraft-lib</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/MANIFEST.MF</exclude>
-                                        <exclude>META-INF/maven/**</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
