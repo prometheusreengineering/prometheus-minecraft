@@ -56,7 +56,6 @@ public class ModLauncherHook extends LegacyBase {
 
     @Override
     public void onLoad(IEnvironment environment, Set<String> otherServices) {
-        if (!Stage0.claim("modlauncher")) return;
         Stage0.run(Loader.MODLAUNCHER, Paths.get("").toAbsolutePath(), jars::add, mixinConfigs::add);
         active = true;
         if (!jars.isEmpty()) registerMixins();
