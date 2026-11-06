@@ -29,13 +29,7 @@ public class FabricHook implements LanguageAdapter, PreLaunchEntrypoint {
 
     @Override
     public void onPreLaunch() {
-        for (String config : pendingMixinConfigs) {
-            try {
-                Mixins.addConfiguration(config);
-            } catch (Throwable t) {
-                Stage0Log.error("could not register mixin config " + config, t);
-            }
-        }
+        pendingMixinConfigs.forEach(Mixins::addConfiguration);
         pendingMixinConfigs.clear();
     }
 

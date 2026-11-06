@@ -1,8 +1,12 @@
 package ing.prometheusreengineer.minecraft.loader.stage0;
 
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.BiConsumer;
@@ -14,11 +18,12 @@ import java.util.function.Consumer;
  * core that never starts still leaves a trace. Stage 0 can't write a file of its own: finding the prometheus folder
  * needs minecraft-lib's settings. Never throws.
  */
+@NotNullByDefault
 public final class Stage0Log {
     private Stage0Log() {}
 
-    private static final List<String[]> kept = new ArrayList<>();
-    private static BiConsumer<String, String> core;
+    private static final List<String[]> kept = new LinkedList<>();
+    private static @Nullable BiConsumer<String, String> core;
 
     public static void info(String format, Object... args) {
         write("INFO", format(format, args), null);
@@ -46,7 +51,7 @@ public final class Stage0Log {
         return Stage0Log::handOver;
     }
 
-    private static synchronized void write(String level, String message, Throwable t) {
+    private static synchronized void write(String level, String message, @Nullable Throwable t) {
         if (t != null) message += System.lineSeparator() + stackTrace(t);
         if (core != null) {
             send(level, message);
@@ -58,7 +63,7 @@ public final class Stage0Log {
 
     private static void send(String level, String message) {
         try {
-            core.accept(level, message);
+            if (core != null) core.accept(level, message);
         } catch (Throwable t) {
             System.out.println("[Prometheus/stage0] (" + level + ") " + message);
         }

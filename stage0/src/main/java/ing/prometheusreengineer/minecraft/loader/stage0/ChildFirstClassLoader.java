@@ -1,20 +1,18 @@
 package ing.prometheusreengineer.minecraft.loader.stage0;
 
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
+import java.util.Optional;
 
 /**
- * Loads the carried lib's classes from its jar first, and everything else (the JDK, the game, the platform's APIs) from
- * the hook's class loader.
- * <br>
- * Child first, because stage 1 adds the lib's jar to the game's class path so patches can use it. With the normal
- * parent-first order, classes asked for after that could come from the game's copy and mix with the ones already
- * loaded from here, which breaks package-private access between them.
- * <br>
- * minecraft-lib has its own copy, which stage 1 uses. Stage 0 needs this one to load the lib in the first place.
+ * A copy of minecraft-lib's ChildFirstClassLoader, so that we can load that one.
  */
+@NotNullByDefault
 final class ChildFirstClassLoader extends URLClassLoader {
     static {
         ClassLoader.registerAsParallelCapable();
@@ -42,8 +40,8 @@ final class ChildFirstClassLoader extends URLClassLoader {
     }
 
     @Override
-    public URL getResource(String name) {
-        URL url = findResource(name);
-        return url != null ? url : super.getResource(name);
+    public @Nullable URL getResource(String name) {
+        return Optional.ofNullable(findResource(name))
+                .orElseGet(() -> super.getResource(name));
     }
 }

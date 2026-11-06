@@ -3,16 +3,18 @@ package ing.prometheusreengineer.minecraft.loader.stage0.modlauncher;
 import cpw.mods.jarhandling.SecureJar;
 import cpw.mods.modlauncher.api.IModuleLayerManager;
 import cpw.mods.modlauncher.api.ITransformationService;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * The only class using ModLauncher 9+ types, so it is only ever loaded there.
  */
+@NotNullByDefault
 final class ModernResources {
     private ModernResources() {}
 
@@ -23,10 +25,14 @@ final class ModernResources {
     static @Unmodifiable List<ITransformationService.Resource> of(List<Path> jars) {
         IModuleLayerManager.Layer layer = IModuleLayerManager.Layer.GAME;
         // JDK only: stage 0 can't use minecraft-lib, which isn't on its class path
-        List<ITransformationService.Resource> resources = new ArrayList<>();
-        for (Path jar : jars) {
-            resources.add(new ITransformationService.Resource(layer, Collections.singletonList(SecureJar.from(jar))));
-        }
-        return Collections.unmodifiableList(resources);
+        return Collections.unmodifiableList(
+                jars.stream()
+                    .map(jar ->
+                            new ITransformationService.Resource(
+                                    layer,
+                                    Collections.singletonList(SecureJar.from(jar))
+                            )
+                    ).collect(Collectors.toList())
+        );
     }
 }
