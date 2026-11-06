@@ -1,8 +1,10 @@
 package ing.prometheusreengineer.minecraft.loader.stage0.modlauncher;
 
 import cpw.mods.modlauncher.api.IEnvironment;
+import cpw.mods.modlauncher.api.IModuleLayerManager;
 import cpw.mods.modlauncher.api.ITransformationService;
 import cpw.mods.modlauncher.api.ITransformer;
+import ing.prometheusreengineer.minecraft.loader.stage0.Loader;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.launch.MixinBootstrap;
 import org.spongepowered.asm.mixin.MixinEnvironment;
@@ -34,10 +36,10 @@ import java.util.function.Supplier;
  */
 public class ModLauncherHook extends LegacyBase {
     /**
-     * Java 21+: Forge 1.21+, where the patches go in the GAME layer and Mixin bootstraps itself. Not final so tests
-     * can take both paths on one JVM.
+     * ModLauncher 9+: module layers, and Mixin as a ModLauncher service of its own. Not final so tests can take both
+     * paths on one JVM.
      */
-    static boolean modern = hasMethod(List.class, "getFirst");
+    static boolean layered = hasClass("cpw.mods.modlauncher.api.IModuleLayerManager");
 
     private final List<Path> jars = new ArrayList<>();
     private final List<String> mixinConfigs = new ArrayList<>();
@@ -55,51 +57,61 @@ public class ModLauncherHook extends LegacyBase {
 
     @Override
     public void onLoad(IEnvironment environment, Set<String> otherServices) {
-        if (!Stage0.claim("modlauncher")) return;
+        Stage0.run(Loader.MODLAUNCHER, Paths.get("").toAbsolutePath(), jars::add, mixinConfigs::add);
         active = true;
-        Stage0.run("modlauncher", Paths.get("").toAbsolutePath(), jars::add, mixinConfigs::add);
-        if (!jars.isEmpty()) registerMixins();
+        // 9+ registers them in completeScan: Mixin is running by then, and the jars are about to join the GAME layer
+        if (!jars.isEmpty() && !layered) {
+            try {
+                MixinBootstrap.init();
+                MixinEnvironment.getDefaultEnvironment();
+            } catch (Throwable ignored) {
+                // already initialized by another mod, or (1.14.4) no Mixin at all
+            }
+            addMixinConfigs();
+        }
     }
 
     /**
-     * Unchanged from the loader before stage 0, where it works on 1.18.2 and 1.21.x: the jars only join the game's
-     * class loader after the scan, so make them visible to Mixin through the context class loader while it reads them.
+     * Mixin reads a config as soon as it's added, through the context class loader, and the jars only join the game's
+     * class loader after the scan. So they're made visible there while it reads them.
      */
-    private void registerMixins() {
+    private void addMixinConfigs() {
+        List<URL> urls = new ArrayList<>();
+        for (Path jar : jars) LegacyLocator.url(jar.toUri().toString()).ifPresent(urls::add);
         ClassLoader backup = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(new URLClassLoader(urls.toArray(new URL[0]), backup));
         try {
-            URL[] urls = new URL[jars.size()];
-            for (int i = 0; i < urls.length; i++) urls[i] = jars.get(i).toUri().toURL();
-            Thread.currentThread().setContextClassLoader(new URLClassLoader(urls, backup));
-
-            if (modern) {
-                // 1.21+ bootstraps Mixin strictly as a ModLauncher service, calling MixinBootstrap.init() crashes
-                MixinEnvironment.getDefaultEnvironment();
-            } else {
+            for (String config : mixinConfigs) {
                 try {
-                    MixinBootstrap.init();
-                    MixinEnvironment.getDefaultEnvironment();
-                } catch (Throwable ignored) {
-                    // already initialized by another mod, or (1.14.4) no Mixin at all
+                    Mixins.addConfiguration(config);
+                } catch (Throwable t) {
+                    Stage0Log.error("could not register mixin config " + config, t);
                 }
-                for (String config : mixinConfigs) Mixins.addConfiguration(config);
             }
-        } catch (Throwable t) {
-            // "Environment conflict, mismatched versions or you didn't call MixinBootstrap.init()" is a known,
-            // harmless side effect of this
-            Stage0Log.warn("Mixin environment setup threw: %s", t);
         } finally {
             Thread.currentThread().setContextClassLoader(backup);
         }
     }
 
     /**
-     * ModLauncher 9+. Never called on 2-8, so ModernResources (and its 9+ types) never load there.
+     * ModLauncher 9+ adds only the PLUGIN entries of these to a layer, and drops GAME ones (checked in 9.1.3, 10.2.4
+     * and 11.0.4), so the jars come from {@link #completeScan} instead.
      */
     @Override
     public List<ITransformationService.Resource> beginScanning(IEnvironment environment) {
+        return Collections.emptyList();
+    }
+
+    /**
+     * ModLauncher 9+: the jars go in the GAME layer, with the mods they patch. Never called on 2-8, so ModernResources
+     * (and its 9+ types) never load there.
+     */
+    @Override
+    public List<ITransformationService.Resource> completeScan(IModuleLayerManager layerManager) {
         if (!active) return Collections.emptyList();
-        return ModernResources.of(jars, modern);
+        // nothing reads the jars' own MixinConfigs: they aren't mods (checked on Forge 1.18.2)
+        addMixinConfigs();
+        return ModernResources.of(jars);
     }
 
     /**
@@ -138,13 +150,13 @@ public class ModLauncherHook extends LegacyBase {
     }
 
     /**
-     * {@code hasMethod(List.class, "getFirst")} is true from Java 21.
+     * Whether this hook's class loader can see {@code name}: ModLauncher's API, here.
      */
-    static boolean hasMethod(Class<?> type, String name) {
+    static boolean hasClass(String name) {
         try {
-            type.getMethod(name);
+            Class.forName(name, false, ModLauncherHook.class.getClassLoader());
             return true;
-        } catch (NoSuchMethodException e) {
+        } catch (ClassNotFoundException e) {
             return false;
         }
     }

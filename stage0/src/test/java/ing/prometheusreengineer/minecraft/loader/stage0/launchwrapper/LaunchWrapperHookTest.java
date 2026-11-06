@@ -4,7 +4,6 @@ import net.minecraft.launchwrapper.LaunchClassLoader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ing.prometheusreengineer.minecraft.loader.stage0.Stage0;
 import ing.prometheusreengineer.minecraft.loader.stage0.TestSupport;
 
 import java.io.IOException;
@@ -84,7 +83,8 @@ class LaunchWrapperHookTest {
 
     @Test
     void anotherHookAlreadyRan() throws IOException {
-        Stage0.claim("fabric");
+        // what Stage0's claim leaves behind
+        System.setProperty("prometheus.stage0.claimed", "fabric");
         try (LaunchClassLoader loader = new LaunchClassLoader(new URL[0])) {
             new LaunchWrapperHook().injectIntoClassLoader(loader);
             assertTrue(loader.getSources().isEmpty());

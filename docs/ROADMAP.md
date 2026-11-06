@@ -1,7 +1,7 @@
 # Roadmap: the loader as the only way in
 
 Prometheus is moving from "every patch is its own mod, plus a loader that downloads them" to "the loader is the only way
-in". This page is the plan, why each decision was made, and what's done. Last updated 2026-10-27.
+in". This page is the plan, why each decision was made, and what's done. Last updated 2026-11-06.
 
 ## Why
 
@@ -11,7 +11,7 @@ own renamed copy of it.
 
 Instead, the loader becomes the only entry point:
 
-- **One copy of minecraft-lib in the game**, unrenamed, so there are no copies to keep in sync.
+- **One minecraft-lib jar in the game**, unrenamed, so there are no copies to keep in sync.
 - **Everything updates itself.** The lib ships inside the loader's auto-updated core.
 - **One place handles platforms.** The loader deals with Fabric, Forge and NeoForge, so patches don't each need entry
   points for every platform.
@@ -20,10 +20,10 @@ Instead, the loader becomes the only entry point:
 
 ```
 installed: prometheus-<version>-minecraft.jar   (stage 0, Java 8, JDK only, rarely changes)
-   │  one hook per platform: Fabric preLaunch | LaunchWrapper tweaker | ModLauncher service | NeoForge locator
-   │  downloads + verifies the core, or uses the cached one when offline
+   │  one hook per platform: Fabric language adapter | LaunchWrapper tweaker | ModLauncher service | NeoForge locator
+   │  downloads + verifies the core from a fixed URL, or uses the cached one when offline
    ▼
-GitHub release: prometheus-core-<version>.jar   (loader logic + minecraft-lib, unrenamed)
+GitHub release: prometheus-core.jar + .sha256   (loader logic + minecraft-lib, unrenamed)
    │  reads patches.json, keeps the patches whose target is installed
    │  downloads + verifies each, adds it to the class path, registers its mixin configs, calls PrometheusPatch.init
    ▼
@@ -33,10 +33,16 @@ GitHub releases of each patch: lunar, essential, dawn
 
 - **Stage 0 → core** passes only JDK types: stage 0 calls `Bootstrap.run(Map<String, Object>)` by reflection, so it
   doesn't matter which class loader each side lives in. The keys are versioned by `Stage0.CONTRACT`.
-- **One release instead of two.** The lib ships inside the core, so there's no matrix of loader and lib versions.
+- **One release instead of two.** The lib ships inside the core, so there's no matrix of loader and lib versions, and
+  a new lib, even a new major version, never needs a new stage 0.
+- **Stage 0 knows as little as possible.** It's the one jar users can't easily update, so it reads two fixed URLs
+  (`releases/latest/download/prometheus-core.jar` and its `.sha256`) instead of the REST API, and parses no JSON. The
+  cost is that those two names can never change. We tried moving the update logic into the lib, with a self-updating
+  stage 1 (`stage0-core-stage1-backup`), and dropped it: a core release already updates the lib, and it added a lib/core
+  version matrix, a second download host, and a new stage 0 for every lib major version.
 - **Downloads are safe.**
-  - Every jar is checked against the SHA-256 GitHub publishes for the release asset.
-  - GitHub is asked at most once per `update.interval` (the unauthenticated API allows 60 calls an hour).
+  - Patches are checked against the SHA-256 GitHub publishes for the release asset, and the core against its `.sha256`.
+  - Each is checked at most once per `update.interval` (the unauthenticated API allows 60 calls an hour).
   - Offline launches use the last verified cache.
   - A jar that another running game may have open is never overwritten.
 
@@ -89,10 +95,12 @@ static field.
 
 ### Phase 2: the loader split into stage 0 and the core. Done, not released.
 
-- Built and tested in game with today's patches. The README's Compatibility section has the version table.
+- Built and tested in game with today's patches, up to the changes of 2026-11-06. The README's Compatibility section
+  has the version table.
 - `patches.json` lists several target classes per patch (`classPaths`), so Essential is one entry instead of three.
   Loaders from before stage 0 can't read this format, which is intended.
-- To release: merge `stage0-core`, then publish a release with **both** jars attached.
+- To release: launch this build in game, merge it, then publish a release with the stage 0 jar,
+  `prometheus-core.jar` and `prometheus-core.jar.sha256` attached.
 
 ### Phase 3: the patches. Not started.
 
@@ -116,8 +124,8 @@ For each of [minecraft-lunar](https://github.com/prometheusreengineering/minecra
 
 Still to check before or during this phase:
 
-- **Dawn's timing:** with Fabric `preLaunch` instead of a language adapter, is `DAWN_API_URL` still set before
-  Feather reads it?
+- **Dawn's timing:** stage 0 starts from a Fabric language adapter, as Dawn's own entry did. Is `DAWN_API_URL` still
+  set before Feather reads it?
 - **Mixins on ModLauncher 1.21+:** do patch mixins load through the core's registration, or through the patch's
   `mods.toml` `[[mixins]]`? Patches may need to keep `[[mixins]]` (metadata only, no entry point).
 - **Calling `PrometheusPatch.init`:** at the right moment on each platform. On ModLauncher that's after the GAME layer

@@ -1,17 +1,20 @@
 package ing.prometheusreengineer.minecraft.loader.stage0.fabric;
 
+import net.fabricmc.loader.api.LanguageAdapterException;
 import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.fabricmc.loader.impl.launch.FabricLauncher;
 import net.fabricmc.loader.impl.launch.FabricLauncherBase;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ing.prometheusreengineer.minecraft.loader.stage0.Stage0;
 import ing.prometheusreengineer.minecraft.loader.stage0.TestSupport;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +22,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FabricHookTest {
@@ -33,7 +37,7 @@ class FabricHookTest {
         TestSupport.fakeCore(folder);
         patch = TestSupport.jar(folder.resolve("patch.jar"), "com/example/patch/A.class");
 
-        // what Fabric has set up by preLaunch: the game dir and its launcher
+        // what Fabric has set up by the time it loads language adapters: the game dir and its launcher
         Field gameDir = FabricLoaderImpl.class.getDeclaredField("gameDir");
         gameDir.setAccessible(true);
         gameDir.set(FabricLoaderImpl.INSTANCE, folder);
@@ -63,27 +67,66 @@ class FabricHookTest {
         return (Map<?, ?>) System.getProperties().get("test.bootstrap.context");
     }
 
+    /**
+     * What stage 0 prints while {@code run} does its work.
+     */
+    private static String console(Runnable run) {
+        PrintStream stdout = System.out;
+        ByteArrayOutputStream console = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(console, true));
+        try {
+            run.run();
+        } finally {
+            System.setOut(stdout);
+        }
+        return new String(console.toByteArray(), StandardCharsets.UTF_8);
+    }
+
     @Test
     void addsPatchesThroughFabricsLauncher() throws IOException {
         System.setProperty("test.bootstrap.jars", patch.toString());
-        new FabricHook().onPreLaunch();
+        FabricHook.onLanguageAdapterInit();
         assertEquals(folder, context().get("gameDir"));
         assertEquals(1, added.size());
         assertEquals(patch, added.get(0));
     }
 
     @Test
-    void mixinConfigsGoToMixin() {
-        // without a running game Mixin can't take the config, which only the fake core sees
+    void mixinConfigsWaitForPreLaunch() {
         System.setProperty("test.bootstrap.configs", "patch.mixins.json");
-        new FabricHook().onPreLaunch();
+        FabricHook.onLanguageAdapterInit();
         assertTrue(context() != null);
+
+        // without a running game Mixin refuses the config, which is only logged
+        String log = console(() -> {
+            new FabricHook().onPreLaunch();
+            new FabricHook().onPreLaunch();
+        });
+        assertTrue(log.contains("could not register mixin config patch.mixins.json"), log);
+        assertEquals(log.indexOf("could not register"), log.lastIndexOf("could not register"), "registered once, then forgotten");
     }
 
     @Test
     void anotherHookAlreadyRan() {
-        Stage0.claim("modlauncher");
-        new FabricHook().onPreLaunch();
+        // what Stage0's claim leaves behind
+        System.setProperty("prometheus.stage0.claimed", "modlauncher");
+        FabricHook.onLanguageAdapterInit();
         assertNull(context());
+    }
+
+    @Test
+    void aFailureOutsideStage0DoesNotCrashTheLaunch() throws Exception {
+        new FabricHook(); // the static block has run
+        Field gameDir = FabricLoaderImpl.class.getDeclaredField("gameDir");
+        gameDir.setAccessible(true);
+        gameDir.set(FabricLoaderImpl.INSTANCE, null);
+        String log = console(FabricHook::onLanguageAdapterInit);
+        assertTrue(log.contains("could not start on Fabric"), log);
+    }
+
+    @Test
+    void neverCreatesAnything() {
+        // stage 0 is only a language adapter to run early, no mod uses it
+        assertThrows(LanguageAdapterException.class, () -> new FabricHook().create(null, "", Object.class));
     }
 }

@@ -11,17 +11,17 @@
     </parent>
 
     <!--
-        prometheus-core-<version>.jar: attach it to this repo's GitHub release, stage 0 picks the newest
-        prometheus-core-*.jar asset. Contains minecraft-lib with its package unchanged (the one copy in a game).
+        prometheus-core.jar and prometheus-core.jar.sha256: attach both to this repo's GitHub release. Stage 0 reads
+        them from releases/latest/download/, so their names can't change. Contains minecraft-lib with its package
+        unchanged.
     -->
     <artifactId>prometheus-core</artifactId>
 
     <dependencies>
-        <!-- build it first: mvn install in ../minecraft-lib -->
         <dependency>
             <groupId>ing.prometheusreengineer.minecraft</groupId>
             <artifactId>minecraft-lib</artifactId>
-            <version>1.0.0</version>
+            <version>${minecraft-lib.version}</version>
         </dependency>
         <!-- the game's; 2.2.4 is 1.8.9's, so only API that it already has -->
         <dependency>
@@ -33,6 +33,7 @@
     </dependencies>
 
     <build>
+        <finalName>prometheus-core</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
@@ -83,6 +84,34 @@
                                     </excludes>
                                 </filter>
                             </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <!-- after shade, which is declared first: the hash has to be of the jar that gets released -->
+                <groupId>net.nicoulaj.maven.plugins</groupId>
+                <artifactId>checksum-maven-plugin</artifactId>
+                <version>1.11</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>files</goal>
+                        </goals>
+                        <configuration>
+                            <fileSets>
+                                <fileSet>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>prometheus-core.jar</include>
+                                    </includes>
+                                </fileSet>
+                            </fileSets>
+                            <algorithms>
+                                <algorithm>SHA-256</algorithm>
+                            </algorithms>
+                            <csvSummary>false</csvSummary>
                         </configuration>
                     </execution>
                 </executions>

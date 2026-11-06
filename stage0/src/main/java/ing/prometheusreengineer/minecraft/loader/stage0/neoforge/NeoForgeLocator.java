@@ -1,5 +1,6 @@
 package ing.prometheusreengineer.minecraft.loader.stage0.neoforge;
 
+import ing.prometheusreengineer.minecraft.loader.stage0.Loader;
 import net.neoforged.neoforgespi.ILaunchContext;
 import net.neoforged.neoforgespi.locating.IDiscoveryPipeline;
 import net.neoforged.neoforgespi.locating.IModFileCandidateLocator;
@@ -24,8 +25,7 @@ import java.nio.file.Paths;
 public class NeoForgeLocator implements IModFileCandidateLocator {
     @Override
     public void findCandidates(ILaunchContext context, IDiscoveryPipeline pipeline) {
-        if (!Stage0.claim("neoforge")) return;
-        Stage0.run("neoforge", Paths.get("").toAbsolutePath(),
+        Stage0.run(Loader.NEOFORGE, Paths.get("").toAbsolutePath(),
                 jar -> pipeline.addPath(jar, ModFileDiscoveryAttributes.DEFAULT, IncompatibleFileReporting.WARN_ALWAYS),
                 config -> { /* NeoForge reads mixins from the jar's neoforge.mods.toml */ });
     }

@@ -4,9 +4,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import ing.prometheusreengineer.minecraft.log.Log;
-import ing.prometheusreengineer.minecraft.util.AtomicFiles;
-import ing.prometheusreengineer.minecraft.util.Http;
-import ing.prometheusreengineer.minecraft.util.OS;
+import ing.prometheusreengineer.minecraft.util.io.AtomicFiles;
+import ing.prometheusreengineer.minecraft.util.http.Http;
+import ing.prometheusreengineer.minecraft.util.os.OS;
 import ing.prometheusreengineer.minecraft.util.Settings;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -56,7 +56,7 @@ public final class Bootstrap {
      */
     @SuppressWarnings("unused") //used by stage0
     public static void run(@NotNull Map<String, Object> context) {
-        // there's one copy of the lib, the core's, so its own log lines belong to the loader
+        // this copy of the lib only serves the core (patches see the one on the game's class path), so its lines are the loader's
         Log.setOwner("loader");
         try {
             new Bootstrap(context).patch();

@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -37,13 +36,18 @@ class Stage0Test {
     }
 
     private void run() {
-        Stage0.run("test", Paths.get("game"), classpath::add, configs::add);
+        Stage0.run(Loader.FABRIC, Paths.get("game"), classpath::add, configs::add);
     }
 
     @Test
-    void theFirstHookClaimsTheJvm() {
-        assertTrue(Stage0.claim("modlauncher"));
-        assertFalse(Stage0.claim("neoforge"));
+    void theFirstHookClaimsTheJvm() throws IOException {
+        TestSupport.fakeCore(folder);
+        Stage0.run(Loader.MODLAUNCHER, Paths.get("game"), classpath::add, configs::add);
+        Object first = System.getProperties().remove("test.bootstrap.context");
+        assertEquals("modlauncher", ((Map<?, ?>) first).get("platform"));
+
+        Stage0.run(Loader.NEOFORGE, Paths.get("game"), classpath::add, configs::add);
+        assertNull(System.getProperties().get("test.bootstrap.context"), "the second hook starts nothing");
         assertEquals("modlauncher", System.getProperty("prometheus.stage0.claimed"));
     }
 
@@ -58,7 +62,7 @@ class Stage0Test {
         Map<?, ?> context = (Map<?, ?>) System.getProperties().get("test.bootstrap.context");
         assertEquals(Stage0.CONTRACT, context.get("contract"));
         assertEquals("2.0.0-minecraft", context.get("stage0Version"));
-        assertEquals("test", context.get("platform"));
+        assertEquals("fabric", context.get("platform"));
         assertEquals(Paths.get("game"), context.get("gameDir"));
         assertEquals(core, context.get("coreJar"));
         assertEquals(1, classpath.size());
