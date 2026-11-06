@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ModLauncherHookTest {
-    private final boolean modern = ModLauncherHook.modern;
+    private final boolean layered = ModLauncherHook.layered;
     private Path folder;
     private Path patch;
 
@@ -34,12 +34,12 @@ class ModLauncherHookTest {
 
     @AfterEach
     void tearDown() {
-        ModLauncherHook.modern = modern;
+        ModLauncherHook.layered = layered;
         TestSupport.clear();
     }
 
     /**
-     * A hook after ModLauncher's onLoad, with the fake core adding {@code patch} and its mixin config.
+     * A hook after ModLauncher's onLoad, with the fake stage 1 adding {@code patch} and its mixin config.
      */
     private ModLauncherHook loaded() {
         System.setProperty("test.stage1.jars", patch.toString());
@@ -64,7 +64,7 @@ class ModLauncherHookTest {
         ModLauncherHook hook = new ModLauncherHook();
         hook.onLoad(null, Collections.<String>emptySet());
 
-        assertTrue(hook.beginScanning(null).isEmpty());
+        assertTrue(hook.completeScan(null).isEmpty());
         assertTrue(hook.legacyScan().isEmpty());
         assertNull(hook.additionalClassesLocator());
         assertNull(hook.additionalResourcesLocator());
@@ -73,7 +73,7 @@ class ModLauncherHookTest {
     @Test
     void scannedBeforeOnLoad() {
         ModLauncherHook hook = new ModLauncherHook();
-        assertTrue(hook.beginScanning(null).isEmpty());
+        assertTrue(hook.completeScan(null).isEmpty());
         assertTrue(hook.legacyScan().isEmpty());
     }
 
@@ -81,33 +81,36 @@ class ModLauncherHookTest {
     void noPatchesNoMixins() {
         ModLauncherHook hook = new ModLauncherHook();
         hook.onLoad(null, Collections.<String>emptySet());
-        assertTrue(hook.beginScanning(null).isEmpty());
+        assertTrue(hook.completeScan(null).isEmpty());
         assertTrue(hook.legacyScan().isEmpty());
         assertNull(hook.additionalClassesLocator(), "no jars, no locator");
     }
 
     @Test
-    void modernPutsPatchesInTheGameLayer() {
-        ModLauncherHook.modern = true;
-        List<ITransformationService.Resource> resources = loaded().beginScanning(null);
+    void modLauncher9PutsPatchesInTheGameLayerAfterTheScan() {
+        ModLauncherHook.layered = true;
+        ModLauncherHook hook = loaded();
+        // 9-11 drop GAME resources from beginScanning
+        assertTrue(hook.beginScanning(null).isEmpty());
+        // without a running game Mixin refuses the config, which is only logged
+        List<ITransformationService.Resource> resources = hook.completeScan(null);
         assertEquals(1, resources.size());
         assertEquals(IModuleLayerManager.Layer.GAME, resources.get(0).target());
     }
 
     @Test
-    void olderModLauncherUsesThePluginLayerAndRegistersMixins() {
-        ModLauncherHook.modern = false;
-        List<ITransformationService.Resource> resources = loaded().beginScanning(null);
-        assertEquals(IModuleLayerManager.Layer.PLUGIN, resources.get(0).target());
+    void olderModLauncherRegistersMixinsOnLoad() {
+        ModLauncherHook.layered = false;
+        assertEquals(1, loaded().legacyScan().size());
     }
 
     @Test
     void olderModLauncherWithAPatchWithoutMixins() {
-        ModLauncherHook.modern = false;
+        ModLauncherHook.layered = false;
         System.setProperty("test.stage1.jars", patch.toString());
         ModLauncherHook hook = new ModLauncherHook();
         hook.onLoad(null, Collections.<String>emptySet());
-        assertEquals(1, hook.beginScanning(null).size());
+        assertEquals(1, hook.legacyScan().size());
     }
 
     @Test
@@ -123,8 +126,8 @@ class ModLauncherHookTest {
     }
 
     @Test
-    void java21Check() {
-        assertTrue(ModLauncherHook.hasMethod(String.class, "isEmpty"));
-        assertFalse(ModLauncherHook.hasMethod(String.class, "noSuchMethod"));
+    void modLauncher9Check() {
+        assertTrue(ModLauncherHook.hasClass("cpw.mods.modlauncher.api.IModuleLayerManager"));
+        assertFalse(ModLauncherHook.hasClass("cpw.mods.modlauncher.NoSuchClass"));
     }
 }

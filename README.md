@@ -18,18 +18,19 @@ the same route as a tested version but haven't been launched yet. Last updated 2
 ### Forge
 | Versions | Route in stage 0 | Status |
 |---|---|---|
-| 1.8.9, 1.12.2 | LaunchWrapper tweaker | ✅ Tested (Essential; Lunar on 1.8.9) |
-| 1.16.5 | ModLauncher 8, plus `LegacyLocator` to reach the game's class loader | ✅ Tested (Essential) |
-| 1.21.1 | ModLauncher 10, Java 21 | ✅ Tested (Essential) |
-| 1.21.4, 1.21.8 | Same as 1.21.1 | Should work |
-| 1.18.2, 1.19.2, 1.20.1 | ModLauncher 9/10, Java 17 | Should work, test one (1.20.1) |
+| 1.8.9, 1.12.2 | LaunchWrapper tweaker | ✅ Tested (Essential; Lunar on 1.8.9). 1.8.9 again on 2026-11-06 |
+| 1.16.5 | ModLauncher 8, plus `LegacyLocator` to reach the game's class loader | ✅ Tested (Essential), again on 2026-11-06 |
+| 1.18.2 | ModLauncher 9, Java 17 | ✅ Tested (Essential) on 2026-11-06 |
+| 1.21.1 | ModLauncher 10, Java 21 | ✅ Tested (Essential) before 2026-11-06, test again |
+| 1.19.2, 1.20.1, 1.21.4, 1.21.8 | ModLauncher 9/10 | Should work |
 
-On Java 17 (1.18.2-1.20.1), stage 0 registers mixins the older way: `MixinBootstrap.init`, then `Mixins.addConfiguration`. The loader did the same before stage 0.
+On ModLauncher 9+ (Forge 1.18+), the patches go in the GAME layer from `completeScan`, and stage 0 registers their mixin configs there. Before 2026-11-06 they went in the PLUGIN layer, where a patch can't read the mod it patches (Forge 1.18.2 crashed).
 
 ### NeoForge
 | Versions | Route in stage 0 | Status |
 |---|---|---|
-| 1.21.1 | ModLauncher 11 (the NeoForge locator also fires, the first hook claims the launch) | ✅ Tested (Essential) |
+| 1.21.1 | ModLauncher 11 (the NeoForge locator also fires, the first hook claims the launch) | ✅ Tested (Essential) before 2026-11-06, test again |
+| 1.21.5 | Same as 1.21.1 | Patch loads and its mixins apply (2026-11-06), but one doesn't match Essential 1.4.1.1 and the game crashes: a patch issue |
 | 1.21.4, 1.21.8 | Most likely ModLauncher 11, like 1.21.1 | Should work, test one (1.21.8) |
 
 If a version no longer uses ModLauncher, it takes the NeoForge locator (`IModFileCandidateLocator`) instead. That has only been checked on NeoForge 26.3, without a patch.
@@ -37,8 +38,9 @@ If a version no longer uses ModLauncher, it takes the NeoForge locator (`IModFil
 ### Fabric
 | Versions | Route in stage 0 | Status |
 |---|---|---|
-| 1.21.11 | `preLaunch` entrypoint | ✅ Tested (Essential, Lunar) |
-| 1.16.5, 1.18.2, 1.19.2, 1.20.1, 1.21.1, 1.21.4, 1.21.8, 1.21.10, 26.1, 26.1.1, 26.1.2, 26.2, 26.3 | Same `preLaunch` | Should work, test the oldest (1.16.5, Java 8) and newest (26.3, Java 25) |
+| 1.21.4 | Language adapter (stage 0 and the jars), then `preLaunch` (mixin configs) | ✅ Tested (Essential) on 2026-11-06 |
+| 1.21.11 | `preLaunch` entrypoint, before the language adapter | ✅ Tested (Essential, Lunar), test again |
+| 1.16.5, 1.18.2, 1.19.2, 1.20.1, 1.21.1, 1.21.8, 1.21.10, 26.1, 26.1.1, 26.1.2, 26.2, 26.3 | Same as 1.21.4 | Should work, test the oldest (1.16.5, Java 8) and newest (26.3, Java 25) |
 
 ### Not covered
 - **Forge 1.14.4:** stage 0 starts, but ModLauncher 2 has no way to put the patch jars in the game's class loader. Essential doesn't support 1.14.

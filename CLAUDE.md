@@ -94,8 +94,15 @@ The lib version both use is `minecraft-lib.version` in the parent pom.
     crashes the launch**. `LegacyLocator` leaves out anything already claimed, `net.minecraft.*` and generic
     root-level files.
   - ModLauncher 2 (Forge 1.14.4) has neither, so patches can't load there.
-- **ModLauncher 9+:** the jars become GAME-layer resources (`ModernResources`). `MODERN` (Java 21+, Forge 1.21+) skips
-  `MixinBootstrap.init()`, which crashes there.
+- **ModLauncher 9+:** the jars become GAME-layer resources (`ModernResources`), with the mods they patch, from
+  `completeScan`. ModLauncher 9-11 drop GAME resources returned by `beginScanning` (checked in 9.1.3, 10.2.4 and
+  11.0.4), and a jar in the PLUGIN layer can't read the mod it patches ("module prometheus.essential does not read
+  module essential", Forge 1.18.2).
+  - Nothing reads the patches' own `MixinConfigs` there (they aren't mods), so `completeScan` registers the configs,
+    with the jars on the context class loader while Mixin reads them. It never calls `MixinBootstrap.init()`: Mixin
+    is a ModLauncher service there, and the call crashes on Java 21.
+  - `ModLauncherHook.layered` (`IModuleLayerManager` exists) picks between this and the 2-8 route, which still
+    registers from `onLoad`.
 - **NeoForge 1.21.1 fires both hooks**, ModLauncher first, each from a different class loader. That's why
   `Stage0.claim` uses a system property, not a static field.
 - Every hook calls `Stage0.claim(...)`, then `Stage0.run(...)`. Platform API types stay inside the hook class for
@@ -105,7 +112,7 @@ The lib version both use is `minecraft-lib.version` in the parent pom.
 
 - **Java 8 bytecode, compiled with JDK 21+.** The platform APIs we compile against (modern Forge, NeoForge) are newer
   class files, so nothing stops a post-8 API call at compile time. No `var`, `List.of`, `Path.of`, records and so on.
-  `ModLauncherHook.isJava21()` is the one deliberate check, done by reflection.
+  `ModLauncherHook.hasClass` (is this ModLauncher 9+?) is the one deliberate check, done by reflection.
 - **Stage 0 almost never changes.** Users only get a new stage 0 by reinstalling, so anything that can live in the
   lib or the core goes there. Stage 0 depends on nothing but the JDK and the platform APIs its hooks implement (all
   `provided`). It must not use minecraft-lib (see Architecture), and doesn't need to: it reads no settings and makes
@@ -185,7 +192,7 @@ JUnit 5 in each module's `src/test/java`, run by `mvn test` (and so by `mvn pack
     `MixinEnvironment.getDefaultEnvironment`) only work inside a running game. Everything else is covered.
   - Keep it that way: every new line gets a test.
 - **Package-private seams:** a path a test can't reach on its own gets one, and the public behavior stays the same.
-  - `ModLauncherHook.modern`
+  - `ModLauncherHook.layered`
   - `Stage0.run(.., InputStream embedded)`, `extract(InputStream, Path)` and `digest(String)`
   - `LegacyLocator.unclaimed(.., owner, field)` and `url(String)`
   - `LaunchWrapperHook.url(URI)`
