@@ -15,9 +15,9 @@ Where this is going, why, and what's left: [docs/ROADMAP.md](docs/ROADMAP.md).
 ```
 installed: prometheus-<version>-minecraft.jar   (stage0/, JDK only, rarely changes)
    │  one hook per platform, the first to fire claims the JVM
-   │  downloads + verifies the core, or uses the cached one
+   │  downloads + verifies the core from a fixed URL, or uses the cached one
    ▼
-GitHub release of this repo: prometheus-core-<version>.jar   (core/ + minecraft-lib, unrenamed)
+GitHub release of this repo: prometheus-core.jar + .sha256   (core/ + minecraft-lib, unrenamed)
    │  reads patches.json, keeps the patches whose target class is present
    │  downloads + verifies each, adds it to the class path, registers its mixin configs
    ▼
@@ -26,12 +26,17 @@ GitHub release of each patch repo: the patch jar
 
 - **Stage 0 → core** passes only JDK types: `Bootstrap.run(Map<String, Object>)`, called by reflection. The core
   runs in a child-first class loader. The keys are documented on `Stage0.CONTRACT`.
-- **The core is the only copy of minecraft-lib in the game.** It puts its own jar on the class path, so patches
-  compile against the lib as `provided`. The core calls `Log.setOwner("loader")`.
+- **Stage 0 finds the core through fixed URLs, not the API.** `releases/latest/download/prometheus-core.jar.sha256`
+  says which core is the latest, and the jar is only downloaded when that hash changes. No JSON, and none of the 60 API
+  calls an hour. So those two asset names are part of what every installed stage 0 depends on: **never rename them.**
+- **The core jar is the only minecraft-lib jar in the game.** It puts its own jar on the class path, so patches compile
+  against the lib as `provided`. The core's child-first loader and the game's class path each load their own classes
+  from it, so the core and the patches don't share the lib's static state. The core calls `Log.setOwner("loader")`.
 - **Logs:** `<prometheus folder>/logs/stage0.log` (stage 0) and `loader.log` (core). The prometheus folder is
   `%APPDATA%/.minecraft/prometheus` on Windows (`OS.getConfigFolder()`).
-- **Caches:** `<prometheus folder>/cache/`: `core/`, `patches/<repo>/`, `patches.json`. Each keeps a `.properties`
-  file with the tag, the asset, the file and its SHA-256.
+- **Caches:** `<prometheus folder>/cache/`: `core/`, `patches/<repo>/`, `patches.json`. Each jar folder keeps a
+  `.properties` file with the file and its SHA-256, plus the tag and asset for patches. Cached cores are named by hash:
+  `prometheus-core-<sha256>.jar`.
 
 ## Modules
 
@@ -39,13 +44,13 @@ GitHub release of each patch repo: the patch jar
 |---|---|---|
 | `stage0-legacy/` | `prometheus-stage0-legacy` | The ModLauncher 2-8 half of the transformation service (`LegacyBase`), compiled against ModLauncher 8.0.9. |
 | `stage0/` | `prometheus` → `prometheus-<version>-minecraft.jar` | The jar users install. The platform hooks, `CoreResolver`, and copies of `Settings`/`OS` (in `Settings.java`). |
-| `core/` | `prometheus-core` → `prometheus-core-<version>.jar` | `Bootstrap` (patch loading) and `ReleaseResolver` (patch jars), with minecraft-lib shaded in, unrenamed. |
+| `core/` | `prometheus-core` → `prometheus-core.jar` and `prometheus-core.jar.sha256` | `Bootstrap` (patch loading) and `ReleaseResolver` (patch jars), with minecraft-lib shaded in, unrenamed. |
 
 ### Stage 0 hooks (`stage0/src/main/java/ing/prometheusreengineer/minecraft/loader/stage0/`)
 
 | Hook | Platform | Registered in |
 |---|---|---|
-| `fabric/FabricHook` | Fabric (`preLaunch`) | `fabric.mod.json` |
+| `fabric/FabricHook` | Fabric: a language adapter (before any entrypoint) starts stage 0, `preLaunch` registers the mixin configs (Mixin isn't running yet when language adapters load) | `fabric.mod.json` `languageAdapters` and `entrypoints` |
 | `launchwrapper/LaunchWrapperHook` | Forge 1.8-1.12 (`ITweaker`) | `META-INF/MANIFEST.MF` `TweakClass` |
 | `modlauncher/ModLauncherHook` | Forge 1.14+, NeoForge ≤ 1.21.1 (`ITransformationService`) | `META-INF/services/cpw.mods.modlauncher.api.ITransformationService` |
 | `neoforge/NeoForgeLocator` | NeoForge without ModLauncher, FML 11+ (`IModFileCandidateLocator`) | `META-INF/services/net.neoforged.neoforgespi.locating.IModFileCandidateLocator` |
@@ -65,18 +70,25 @@ GitHub release of each patch repo: the patch jar
     crashes the launch**. `LegacyLocator` leaves out anything already claimed, `net.minecraft.*` and generic
     root-level files.
   - ModLauncher 2 (Forge 1.14.4) has neither, so patches can't load there.
-- **ModLauncher 9+:** the jars become GAME-layer resources (`ModernResources`). `MODERN` (Java 21+, Forge 1.21+) skips
-  `MixinBootstrap.init()`, which crashes there.
+- **ModLauncher 9+:** the jars become GAME-layer resources (`ModernResources`), with the mods they patch, from
+  `completeScan`. ModLauncher 9-11 drop GAME resources returned by `beginScanning` (checked in 9.1.3, 10.2.4 and
+  11.0.4), and a jar in the PLUGIN layer can't read the mod it patches ("module prometheus.essential does not read
+  module essential", Forge 1.18.2).
+  - Nothing reads the patches' own `MixinConfigs` there (they aren't mods), so `completeScan` registers the configs,
+    with the jars on the context class loader while Mixin reads them. It never calls `MixinBootstrap.init()`: Mixin
+    is a ModLauncher service there, and the call crashes on Java 21.
+  - `ModLauncherHook.layered` (`IModuleLayerManager` exists) picks between this and the 2-8 route, which still
+    registers from `onLoad`.
 - **NeoForge 1.21.1 fires both hooks**, ModLauncher first, each from a different class loader. That's why
   `Stage0.claim` uses a system property, not a static field.
-- Every hook calls `Stage0.claim(...)`, then `Stage0.run(...)`. Platform API types stay inside the hook class for
+- Every hook calls `Stage0.run(...)`, which claims the JVM first. Platform API types stay inside the hook class for
   that platform, so the other hooks never load them.
 
 ## Rules
 
 - **Java 8 bytecode, compiled with JDK 21+.** The platform APIs we compile against (modern Forge, NeoForge) are newer
   class files, so nothing stops a post-8 API call at compile time. No `var`, `List.of`, `Path.of`, records and so on.
-  `ModLauncherHook.isJava21()` is the one deliberate check, done by reflection.
+  `ModLauncherHook.hasClass` (is this ModLauncher 9+?) is the one deliberate check, done by reflection.
 - **Stage 0 almost never changes.** Users only get a new stage 0 by reinstalling, so anything that can live in the
   core goes in the core. Stage 0 depends on nothing but the JDK and the platform APIs its hooks implement (all
   `provided`). It must not use minecraft-lib, so `Settings.java` and `Stage0Log` are its own copies. **Keep
@@ -86,10 +98,12 @@ GitHub release of each patch repo: the patch jar
   or remove `Bootstrap.run(Map)`.
 - **Never crash the game.** Every hook and `Bootstrap.run` catch everything. The worst case is no patches this launch,
   with a log line saying why.
-- **Respect GitHub's rate limit.** The unauthenticated API allows 60 calls an hour per IP. The core and every patch
-  check at most once per `update.interval` (default 60 minutes). Don't add calls that run on every launch.
-- **Verify before loading.** Every downloaded jar is checked against the asset's `digest` (`sha256:<hex>`), and every
-  cached jar against the hash stored when it was downloaded.
+- **Respect GitHub's rate limit.** The unauthenticated API allows 60 calls an hour per IP. Every patch uses it, and
+  checks at most once per `update.interval` (default 60 minutes). The core's fixed URLs aren't the API, but keep the
+  same interval. Don't add calls that run on every launch.
+- **Verify before loading.** A downloaded patch is checked against the asset's `digest` (`sha256:<hex>`) and the core
+  against its `.sha256`, and every cached jar against the hash stored when it was downloaded. A core without a hash is
+  refused. These catch damaged downloads, not a compromised release: the hash comes from the same place as the jar.
 - **Never write over a jar that may be open.** Another running game keeps the jar open, and Windows then refuses to
   replace it. Download to a new name, and delete old jars one at a time, best effort.
 - **`patches.json` is read from `main` by every installed core.** One entry per patch repo: `name`, `classPaths` (any
@@ -107,9 +121,9 @@ GitHub release of each patch repo: the patch jar
 | `update.interval` | `60` | Minutes between update checks |
 | `core.path` | | Use this core jar instead of downloading one |
 | `patch.<repo>.path` | | Use this jar for a patch, ex: `patch.minecraft-lunar.path` |
-| `core.repository` | `prometheusreengineering/prometheus-minecraft` | `owner/repo` the core is downloaded from |
+| `core.url` | `.../releases/latest/download/prometheus-core.jar` | Where the core is downloaded from, with its `.sha256` next to it |
 | `patches.url` | raw `patches.json` on `main` | Where the core reads the patch list |
-| `github.api` | `https://api.github.com` | Another API host (tests, a mirror) |
+| `github.api` | `https://api.github.com` | Another API host for the patches (tests, a mirror) |
 | `http.timeout` | `10000` | Milliseconds |
 | `debug` | `false` | Debug lines in the logs |
 | `folder` | | Another prometheus folder |
@@ -119,13 +133,14 @@ GitHub release of each patch repo: the patch jar
 There may be no `mvn` on the PATH. IntelliJ's bundled Maven works:
 `%APPDATA%/JetBrains/IntelliJIdea<version>/plugins/maven-plugin/lib/maven3/bin/mvn`.
 
-1. Clone [minecraft-lib](https://github.com/prometheusreengineering/minecraft-lib) and run `mvn install` in it
-   first. The core depends on `minecraft-lib` `1.0.0`, which isn't published to a Maven repo, only to `~/.m2`.
+1. The build takes `minecraft-lib` at `minecraft-lib.version` (parent pom) from `https://maven.prometheusreengineer.ing/`.
+   For an unreleased version, clone [minecraft-lib](https://github.com/prometheusreengineering/minecraft-lib) and run
+   `mvn install` in it first. Only the build uses that server, never a game.
 2. `mvn package` in **this repo's root** (`prometheus-parent`). Running it in `stage0/` alone fails, because Maven
    then can't see `stage0-legacy`. To build only stage 0: `mvn -pl stage0 -am package`.
 
-Output: `stage0/target/prometheus-<version>-minecraft.jar` and `core/target/prometheus-core-<version>.jar`. Ignore
-`original-*.jar` and the `stage0-legacy` jar.
+Output: `stage0/target/prometheus-<version>-minecraft.jar`, `core/target/prometheus-core.jar` and
+`core/target/prometheus-core.jar.sha256`. Ignore `original-*.jar` and the `stage0-legacy` jar.
 
 Check after a build:
 
@@ -134,6 +149,7 @@ Check after a build:
 - the classes are Java 8 (`major version: 52` in `javap -v`)
 - the core jar contains `ing/prometheusreengineer/minecraft/**` and keeps its own manifest
   (`FMLModType: GAMELIBRARY`, `Automatic-Module-Name: prometheus.core`)
+- `prometheus-core.jar.sha256` is the hash of the final jar: compare it with `sha256sum core/target/prometheus-core.jar`
 
 Compiler annotation processing is off (`<proc>none</proc>`), because Mixin's processor crashes javac without Gson on
 the processor path.
@@ -149,14 +165,14 @@ JUnit 5 in each module's `src/test/java`, run by `mvn test` (and so by `mvn pack
     `MixinEnvironment.getDefaultEnvironment`) only work inside a running game. Everything else is covered.
   - Keep it that way: every new line gets a test.
 - **Package-private seams:** a path a test can't reach on its own gets one, and the public behavior stays the same.
-  - `ModLauncherHook.modern`
+  - `ModLauncherHook.layered`
   - `CoreResolver.moveIntoPlace(.., Mover)` and `digest(String)`
   - `LegacyLocator.unclaimed(.., owner, field)` and `url(String)`
   - `LaunchWrapperHook.url(URI)`
   - `Stage0.version(InputStream)` and `Bootstrap.version(InputStream)`
   - the file helpers in `CoreResolver` and `ReleaseResolver`
-- **`FakeGitHub`:** the releases API, asset downloads (whole, chunked and cut short) and `patches.json` on the
-  loopback address. Each module has its own copy.
+- **`FakeGitHub`:** each module has its own, on the loopback address. The core's has the releases API, asset downloads
+  and `patches.json`. Stage 0's has the fixed URLs, with their redirects, and the jar sent whole, chunked or cut short.
 - **Stage 0's fake core:** `stage0/src/test/java/ing/prometheusreengineer/minecraft/loader/core/Bootstrap.java`.
   - `TestSupport.fakeCore` jars it, and points `core.path` at that jar.
   - It loads in stage 0's child-first class loader, so tests drive it through `test.bootstrap.*` system properties.
@@ -174,7 +190,7 @@ Beyond the tests:
 
 - **In game:**
   - Put only the stage 0 jar in `mods/`, and start with
-    `-Dprometheus.core.path=<path>/core/target/prometheus-core-<version>.jar`.
+    `-Dprometheus.core.path=<path>/core/target/prometheus-core.jar`.
   - Check `stage0.log` for which hook fired and `loader.log` for `N applicable patches` and `<patch>: loaded`.
   - Record the result in the README's **Compatibility** tables.
 - **ModLauncher internals:** the ModLauncher jars are on Maven (`cpw.mods:modlauncher`,
@@ -184,8 +200,9 @@ Beyond the tests:
 
 ## Releasing
 
-Attach **both** jars to a GitHub release. Stage 0 takes the newest `prometheus-core-*.jar` asset of the latest
-release. Users only need a new stage 0 jar when stage 0 itself changed.
+Attach all three files to a GitHub release: `prometheus-<version>-minecraft.jar`, `prometheus-core.jar` and
+`prometheus-core.jar.sha256`. Stage 0 reads the last two from the latest release, so a latest release without them
+means no core updates. Users only need a new stage 0 jar when stage 0 itself changed.
 
 ## Style
 
@@ -200,7 +217,11 @@ release. Users only need a new stage 0 jar when stage 0 itself changed.
 
 - Patches still load through their own mod metadata and mixin configs. Not built yet: calling their
   `PrometheusPatch.init`, and removing their entry points.
-- Dawn isn't in `patches.json`. It needs its jsonproxy and Kotlin dependencies bundled first, and a check that
-  `preLaunch` is early enough for it.
+- Dawn isn't in `patches.json`. It needs its jsonproxy and Kotlin dependencies bundled first, and a check that stage
+  0's language adapter runs early enough for it.
+- The fixed-URL core download has only run against `FakeGitHub`, because no release has the new assets yet. Check it
+  against a real release, redirects included.
+- Nothing has been launched on this design with the GAME layer and language adapter changes. They were checked on the
+  stage 1 design (`stage0-core-stage1-backup`), which has the same hooks.
 - The NeoForge locator path (FML 11+) has only been checked in game without a patch.
 - The full list, and the reasoning behind the design: [docs/ROADMAP.md](docs/ROADMAP.md).

@@ -56,7 +56,7 @@ public final class Bootstrap {
      */
     @SuppressWarnings("unused") //used by stage0
     public static void run(@NotNull Map<String, Object> context) {
-        // there's one copy of the lib, the core's, so its own log lines belong to the loader
+        // this copy of the lib only serves the core (patches see the one on the game's class path), so its lines are the loader's
         Log.setOwner("loader");
         try {
             new Bootstrap(context).patch();
