@@ -9,9 +9,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import ing.prometheusreengineer.minecraft.loader.stage0.TestSupport;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,11 +77,24 @@ class FabricHookTest {
     }
 
     @Test
-    void mixinConfigsGoToMixin() {
-        // without a running game Mixin can't take the config, which only the fake core sees
+    void mixinConfigsWaitForPreLaunch() {
         System.setProperty("test.stage1.configs", "patch.mixins.json");
         FabricHook.onLanguageAdapterInit();
         assertTrue(context() != null);
+
+        // without a running game Mixin refuses the config, which is only logged
+        PrintStream stdout = System.out;
+        ByteArrayOutputStream console = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(console, true));
+        try {
+            new FabricHook().onPreLaunch();
+            new FabricHook().onPreLaunch();
+        } finally {
+            System.setOut(stdout);
+        }
+        String log = new String(console.toByteArray(), StandardCharsets.UTF_8);
+        assertTrue(log.contains("could not register mixin config patch.mixins.json"), log);
+        assertEquals(log.indexOf("could not register"), log.lastIndexOf("could not register"), "registered once, then forgotten");
     }
 
     @Test

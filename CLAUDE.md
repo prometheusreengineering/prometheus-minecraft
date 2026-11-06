@@ -74,7 +74,7 @@ The lib version both use is `minecraft-lib.version` in the parent pom.
 
 | Hook | Platform | Registered in |
 |---|---|---|
-| `fabric/FabricHook` | Fabric (a language adapter, which loads before any entrypoint) | `fabric.mod.json` `languageAdapters` |
+| `fabric/FabricHook` | Fabric: a language adapter (before any entrypoint) starts stage 0, `preLaunch` registers the mixin configs (Mixin isn't running yet when language adapters load) | `fabric.mod.json` `languageAdapters` and `entrypoints` |
 | `launchwrapper/LaunchWrapperHook` | Forge 1.8-1.12 (`ITweaker`) | `META-INF/MANIFEST.MF` `TweakClass` |
 | `modlauncher/ModLauncherHook` | Forge 1.14+, NeoForge ≤ 1.21.1 (`ITransformationService`) | `META-INF/services/cpw.mods.modlauncher.api.ITransformationService` |
 | `neoforge/NeoForgeLocator` | NeoForge without ModLauncher, FML 11+ (`IModFileCandidateLocator`) | `META-INF/services/net.neoforged.neoforgespi.locating.IModFileCandidateLocator` |
