@@ -9,6 +9,7 @@ import ing.prometheusreengineer.minecraft.util.io.AtomicFiles;
 import ing.prometheusreengineer.minecraft.util.http.Http;
 import ing.prometheusreengineer.minecraft.util.os.OS;
 import ing.prometheusreengineer.minecraft.util.Settings;
+import ing.prometheusreengineer.minecraft.util.java.ChildFirstClassLoader;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
