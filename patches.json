@@ -1,22 +1,18 @@
 [
     {
         "name": "Lunar Client",
-        "classPath": "com.moonsworth.lunar.genesis.Genesis",
+        "classPaths": [
+            "com.moonsworth.lunar.genesis.Genesis"
+        ],
         "repositoryName": "minecraft-lunar"
     },
     {
-        "name": "Essential Mod (Fabric)",
-        "classPath": "gg.essential.loader.stage0.EssentialSetupPreLaunch",
-        "repositoryName": "minecraft-essential"
-    },
-    {
-        "name": "Essential Mod (Forge Legacy)",
-        "classPath": "gg.essential.loader.stage0.EssentialSetupTweaker",
-        "repositoryName": "minecraft-essential"
-    },
-    {
-        "name": "Essential Mod (Forge Modern)",
-        "classPath": "gg.essential.container.loader.stage0.EssentialTransformationService",
+        "name": "Essential Mod",
+        "classPaths": [
+            "gg.essential.loader.stage0.EssentialSetupPreLaunch",
+            "gg.essential.loader.stage0.EssentialSetupTweaker",
+            "gg.essential.container.loader.stage0.EssentialTransformationService"
+        ],
         "repositoryName": "minecraft-essential"
     }
 ]

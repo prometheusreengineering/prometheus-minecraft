@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>ing.prometheusreengineer.minecraft</groupId>
+        <artifactId>prometheus-parent</artifactId>
+        <version>2.0.0</version>
+    </parent>
+
+    <!-- the jar users install: prometheus-<version>-minecraft.jar, as before stage 0 -->
+    <artifactId>prometheus</artifactId>
+    <version>2.0.0-minecraft</version>
+    <description>The Prometheus' loader for Minecraft.</description>
+
+    <properties>
+        <!--
+            Everything but the Mixin calls in the hooks (Mixins.addConfiguration, MixinBootstrap.init,
+            MixinEnvironment.getDefaultEnvironment): Mixin only starts inside a running game, and a call that throws
+            counts as uncovered. Raise these if that changes.
+        -->
+        <coverage.lines>0.98</coverage.lines>
+        <coverage.branches>0.99</coverage.branches>
+    </properties>
+
+    <!-- Everything is provided: stage 0 depends on nothing but the JDK and the platform APIs its hooks implement. -->
+    <dependencies>
+        <dependency>
+            <groupId>net.fabricmc</groupId>
+            <artifactId>fabric-loader</artifactId>
+            <version>0.16.14</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.minecraft</groupId>
+            <artifactId>launchwrapper</artifactId>
+            <version>1.12</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.spongepowered</groupId>
+            <artifactId>mixin</artifactId>
+            <version>0.8.7</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-tree</artifactId>
+            <version>9.7.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- ModLauncher 9+ API for ModLauncherHook; the 2-8 half is stage0-legacy -->
+        <dependency>
+            <groupId>net.minecraftforge</groupId>
+            <artifactId>modlauncher</artifactId>
+            <version>10.2.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- NeoForge FML 11.0.0, the first without ModLauncher; NeoForgeLocator only uses API that 4, 11 and 12 share -->
+        <dependency>
+            <groupId>net.neoforged.fancymodloader</groupId>
+            <artifactId>loader</artifactId>
+            <version>11.0.0</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- not compiled against (the stub LegacyBase in src/ is); unpacked into the jar below -->
+        <dependency>
+            <groupId>ing.prometheusreengineer.minecraft</groupId>
+            <artifactId>prometheus-stage0-legacy</artifactId>
+            <version>2.0.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>26.0.2</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- tests only: NeoForge's IncompatibleFileReporting needs it, and the game ships it -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- tests only, for Env (setting environment variables); stage 0 itself never uses the lib -->
+        <dependency>
+            <groupId>ing.prometheusreengineer.minecraft</groupId>
+            <artifactId>minecraft-lib</artifactId>
+            <version>1.0.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <!-- replaces the compiled stub LegacyBase with the ModLauncher 8 one -->
+                        <id>swap-in-legacy-base</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeArtifactIds>prometheus-stage0-legacy</includeArtifactIds>
+                            <includes>ing/prometheusreengineer/minecraft/loader/stage0/modlauncher/LegacyBase.class</includes>
+                            <outputDirectory>${project.build.outputDirectory}</outputDirectory>
+                            <overWriteReleases>true</overWriteReleases>
+                            <overWriteSnapshots>true</overWriteSnapshots>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <addMavenDescriptor>false</addMavenDescriptor>
+                        <manifest>
+                            <addDefaultEntries>false</addDefaultEntries>
+                        </manifest>
+                        <manifestFile>src/main/resources/META-INF/MANIFEST.MF</manifestFile>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

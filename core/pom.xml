@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>ing.prometheusreengineer.minecraft</groupId>
+        <artifactId>prometheus-parent</artifactId>
+        <version>2.0.0</version>
+    </parent>
+
+    <!--
+        prometheus-core-<version>.jar: attach it to this repo's GitHub release, stage 0 picks the newest
+        prometheus-core-*.jar asset. Contains minecraft-lib with its package unchanged (the one copy in a game).
+    -->
+    <artifactId>prometheus-core</artifactId>
+
+    <dependencies>
+        <!-- build it first: mvn install in ../minecraft-lib -->
+        <dependency>
+            <groupId>ing.prometheusreengineer.minecraft</groupId>
+            <artifactId>minecraft-lib</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <!-- the game's; 2.2.4 is 1.8.9's, so only API that it already has -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.2.4</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <addMavenDescriptor>false</addMavenDescriptor>
+                        <manifestEntries>
+                            <!-- a stable module name in ModLauncher 9+'s GAME layer -->
+                            <Automatic-Module-Name>prometheus.core</Automatic-Module-Name>
+                            <!-- lets NeoForge (FML 11+) take it as a library rather than reject it as a mod -->
+                            <FMLModType>GAMELIBRARY</FMLModType>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <!-- no relocation: patches compile against these exact package names -->
+                            <artifactSet>
+                                <includes>
+                                    <include>ing.prometheusreengineer.minecraft:minecraft-lib</include>
+                                </includes>
+                            </artifactSet>
+                            <filters>
+                                <filter>
+                                    <!-- only the lib's: the core's own manifest carries FMLModType and the module name -->
+                                    <artifact>ing.prometheusreengineer.minecraft:minecraft-lib</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
+                                        <exclude>META-INF/maven/**</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

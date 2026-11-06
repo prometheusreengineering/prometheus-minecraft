@@ -1,0 +1,23 @@
+{
+    "schemaVersion": 1,
+    "id": "${modId}",
+    "version": "${version}",
+    "environment": "client",
+    "name": "Prometheus",
+    "description": "${description}",
+    "authors": [
+        "dxxxxy",
+        "Cootshk"
+    ],
+    "license": "GPL-3.0-only",
+    "contact": {
+        "issues": "https://github.com/prometheusreengineering/prometheus-minecraft/issues",
+        "discord": "https://discord.gg/zXFKGhRKZQ"
+    },
+    "icon": "assets/prometheus/icon.png",
+    "entrypoints": {
+        "preLaunch": [
+            "ing.prometheusreengineer.minecraft.loader.stage0.fabric.FabricHook"
+        ]
+    }
+}

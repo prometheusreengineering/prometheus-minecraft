@@ -1,2 +1,0 @@
-TweakOrder: 0
-TweakClass: studio.dreamys.prometheus.loader.forge.PrometheusForgeLegacyLauncher

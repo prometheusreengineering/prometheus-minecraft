@@ -1,0 +1,2 @@
+TweakOrder: 0
+TweakClass: ing.prometheusreengineer.minecraft.loader.stage0.launchwrapper.LaunchWrapperHook
