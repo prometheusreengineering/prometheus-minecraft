@@ -31,7 +31,7 @@ class FabricHookTest {
     void setUp() throws Exception {
         folder = TestSupport.folder();
         TestSupport.reset(folder);
-        TestSupport.fakeCore(folder);
+        TestSupport.fakeLib(folder);
         patch = TestSupport.jar(folder.resolve("patch.jar"), "com/example/patch/A.class");
 
         // what Fabric has set up by the time it loads language adapters: the game dir and its launcher
@@ -61,12 +61,12 @@ class FabricHookTest {
     }
 
     private static Map<?, ?> context() {
-        return (Map<?, ?>) System.getProperties().get("test.bootstrap.context");
+        return (Map<?, ?>) System.getProperties().get("test.stage1.context");
     }
 
     @Test
     void addsPatchesThroughFabricsLauncher() throws IOException {
-        System.setProperty("test.bootstrap.jars", patch.toString());
+        System.setProperty("test.stage1.jars", patch.toString());
         FabricHook.onLanguageAdapterInit();
         assertEquals(folder, context().get("gameDir"));
         assertEquals(1, added.size());
@@ -76,7 +76,7 @@ class FabricHookTest {
     @Test
     void mixinConfigsGoToMixin() {
         // without a running game Mixin can't take the config, which only the fake core sees
-        System.setProperty("test.bootstrap.configs", "patch.mixins.json");
+        System.setProperty("test.stage1.configs", "patch.mixins.json");
         FabricHook.onLanguageAdapterInit();
         assertTrue(context() != null);
     }

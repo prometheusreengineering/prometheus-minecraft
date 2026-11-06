@@ -28,7 +28,7 @@ class ModLauncherHookTest {
     void setUp() throws IOException {
         folder = TestSupport.folder();
         TestSupport.reset(folder);
-        TestSupport.fakeCore(folder);
+        TestSupport.fakeLib(folder);
         patch = TestSupport.jar(folder.resolve("patch.jar"), "com/example/patch/A.class", "patch.mixins.json");
     }
 
@@ -42,8 +42,8 @@ class ModLauncherHookTest {
      * A hook after ModLauncher's onLoad, with the fake core adding {@code patch} and its mixin config.
      */
     private ModLauncherHook loaded() {
-        System.setProperty("test.bootstrap.jars", patch.toString());
-        System.setProperty("test.bootstrap.configs", "patch.mixins.json");
+        System.setProperty("test.stage1.jars", patch.toString());
+        System.setProperty("test.stage1.configs", "patch.mixins.json");
         ModLauncherHook hook = new ModLauncherHook();
         hook.onLoad(null, Collections.<String>emptySet());
         return hook;
@@ -104,7 +104,7 @@ class ModLauncherHookTest {
     @Test
     void olderModLauncherWithAPatchWithoutMixins() {
         ModLauncherHook.modern = false;
-        System.setProperty("test.bootstrap.jars", patch.toString());
+        System.setProperty("test.stage1.jars", patch.toString());
         ModLauncherHook hook = new ModLauncherHook();
         hook.onLoad(null, Collections.<String>emptySet());
         assertEquals(1, hook.beginScanning(null).size());

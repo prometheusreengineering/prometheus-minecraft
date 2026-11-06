@@ -12,18 +12,18 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
 /**
- * What the stage 0 tests share: a clean JVM state, jars built on the fly, and a fake core.
+ * What the stage 0 tests share: a clean JVM state, jars built on the fly, and a fake lib.
  */
 public final class TestSupport {
     private TestSupport() {}
 
     private static final String[] PROPERTIES = {
-            "prometheus.stage0.claimed", "test.bootstrap.throw", "test.bootstrap.broken", "test.bootstrap.jars",
-            "test.bootstrap.configs", "test.bootstrap.context",
+            "prometheus.stage0.claimed", "test.stage1.throw", "test.stage1.broken", "test.stage1.jars",
+            "test.stage1.configs", "test.stage1.context",
     };
 
     /**
-     * A fresh folder under target/, for tests that load a jar: stage 0 never closes the core's class loader, so on
+     * A fresh folder under target/, for tests that load a jar: stage 0 never closes the lib's class loader, so on
      * Windows the jar stays locked and a @TempDir couldn't be deleted. mvn clean removes these.
      */
     public static Path folder() throws IOException {
@@ -38,7 +38,7 @@ public final class TestSupport {
     }
 
     /**
-     * Forgets every claim, fake core instruction, log line and the embedded core.
+     * Forgets every claim, fake stage 1 instruction, log line and the embedded lib.
      */
     public static void reset(Path folder) {
         clear();
@@ -48,7 +48,7 @@ public final class TestSupport {
         for (String property : PROPERTIES) System.getProperties().remove(property);
         Stage0Log.reset();
         try {
-            Files.deleteIfExists(embeddedCore());
+            Files.deleteIfExists(embeddedLib());
         } catch (IOException e) {
             throw new java.io.UncheckedIOException(e);
         }
@@ -88,23 +88,23 @@ public final class TestSupport {
     }
 
     /**
-     * A core jar with the fake {@code ing.prometheusreengineer.minecraft.loader.core.Bootstrap}, put where stage 0
-     * looks for the core it carries: {@code prometheus-core.jar} next to {@code Stage0.class}, in target/test-classes (the real one
+     * A lib jar with the fake {@code ing.prometheusreengineer.minecraft.boot.Stage1}, put where stage 0
+     * looks for the lib it carries: {@code minecraft-lib.jar} next to {@code Stage0.class}, in target/test-classes (the real one
      * only goes into target/classes at prepare-package, after the tests).
      */
-    public static Path fakeCore(Path folder) throws IOException {
-        Path core = jarOf(folder.resolve("fake-core.jar"), ing.prometheusreengineer.minecraft.loader.core.Bootstrap.class);
-        Files.copy(core, embeddedCore(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        return core;
+    public static Path fakeLib(Path folder) throws IOException {
+        Path lib = jarOf(folder.resolve("fake-lib.jar"), ing.prometheusreengineer.minecraft.boot.Stage1.class);
+        Files.copy(lib, embeddedLib(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        return lib;
     }
 
     /**
-     * Where the stage 0 code under test finds its core: Stage0.class.getResourceAsStream("prometheus-core.jar").
+     * Where the stage 0 code under test finds its lib: Stage0.class.getResourceAsStream("minecraft-lib.jar").
      */
-    static Path embeddedCore() throws IOException {
+    static Path embeddedLib() throws IOException {
         try {
             Path testClasses = Paths.get(TestSupport.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-            return testClasses.resolve("ing/prometheusreengineer/minecraft/loader/stage0/prometheus-core.jar");
+            return testClasses.resolve("ing/prometheusreengineer/minecraft/loader/stage0/minecraft-lib.jar");
         } catch (java.net.URISyntaxException e) {
             throw new IOException(e);
         }

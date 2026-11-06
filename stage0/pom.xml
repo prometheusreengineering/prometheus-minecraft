@@ -92,29 +92,6 @@
             <version>1.7.36</version>
             <scope>test</scope>
         </dependency>
-        <!--
-            The core this jar carries (prometheus-core.jar next to Stage0.class, copied in at prepare-package). Only here so the reactor builds the core
-            first: none of its classes or dependencies are on stage 0's class path (no transitive dependencies, and
-            excluded from the tests, which use a fake core).
-        -->
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>prometheus-core</artifactId>
-            <version>${project.parent.version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>*</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>ing.prometheusreengineer.minecraft</groupId>
-            <artifactId>minecraft-lib</artifactId>
-            <version>1.1.0</version>
-            <scope>compile</scope>
-        </dependency>
     </dependencies>
 
     <build>
@@ -146,38 +123,38 @@
                         </configuration>
                     </execution>
                     <execution>
-                        <!-- the core as a whole jar inside this one, see Stage0 -->
-                        <id>embed-core</id>
+                        <!--
+                            minecraft-lib as a whole jar inside this one, see Stage0. Copied by its coordinates, not a
+                            dependency: nothing in stage 0 may compile against the lib, which isn't on its class path in
+                            the game.
+                        -->
+                        <id>embed-lib</id>
                         <phase>prepare-package</phase>
                         <goals>
-                            <goal>copy-dependencies</goal>
+                            <goal>copy</goal>
                         </goals>
                         <configuration>
-                            <includeArtifactIds>prometheus-core</includeArtifactIds>
-                            <excludeTransitive>true</excludeTransitive>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>ing.prometheusreengineer.minecraft</groupId>
+                                    <artifactId>minecraft-lib</artifactId>
+                                    <version>${minecraft-lib.version}</version>
+                                    <destFileName>minecraft-lib.jar</destFileName>
+                                </artifactItem>
+                            </artifactItems>
                             <outputDirectory>${project.build.outputDirectory}/ing/prometheusreengineer/minecraft/loader/stage0</outputDirectory>
-                            <stripVersion>true</stripVersion>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
             <plugin>
-                <!-- the carried core is measured in its own module -->
+                <!-- the carried lib is measured in its own repo -->
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <configuration>
                     <excludes>
                         <exclude>**/*.jar</exclude>
                     </excludes>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <classpathDependencyExcludes>
-                        <classpathDependencyExclude>${project.groupId}:prometheus-core</classpathDependencyExclude>
-                    </classpathDependencyExcludes>
                 </configuration>
             </plugin>
             <plugin>

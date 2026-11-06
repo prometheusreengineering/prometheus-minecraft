@@ -27,7 +27,7 @@ class NeoForgeLocatorTest {
     void setUp() throws IOException {
         folder = TestSupport.folder();
         TestSupport.reset(folder);
-        TestSupport.fakeCore(folder);
+        TestSupport.fakeLib(folder);
         patch = TestSupport.jar(folder.resolve("patch.jar"), "META-INF/neoforge.mods.toml");
         pipeline = (IDiscoveryPipeline) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{IDiscoveryPipeline.class},
                 (proxy, method, args) -> {
@@ -43,12 +43,12 @@ class NeoForgeLocatorTest {
 
     @Test
     void addsPatchesAsModFiles() {
-        System.setProperty("test.bootstrap.jars", patch.toString());
-        System.setProperty("test.bootstrap.configs", "patch.mixins.json");
+        System.setProperty("test.stage1.jars", patch.toString());
+        System.setProperty("test.stage1.configs", "patch.mixins.json");
         new NeoForgeLocator().findCandidates((ILaunchContext) null, pipeline);
         assertEquals(1, added.size());
         assertEquals(patch, added.get(0));
-        assertTrue(System.getProperties().get("test.bootstrap.context") != null);
+        assertTrue(System.getProperties().get("test.stage1.context") != null);
     }
 
     @Test
@@ -57,7 +57,7 @@ class NeoForgeLocatorTest {
         System.setProperty("prometheus.stage0.claimed", "modlauncher");
         new NeoForgeLocator().findCandidates((ILaunchContext) null, pipeline);
         assertTrue(added.isEmpty());
-        assertNull(System.getProperties().get("test.bootstrap.context"));
+        assertNull(System.getProperties().get("test.stage1.context"));
     }
 
     @Test

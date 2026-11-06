@@ -47,7 +47,7 @@ class Stage0Test {
     }
 
     /**
-     * Takes stage 0's log the way the core does.
+     * Takes stage 0's log the way stage 1 does.
      */
     private void takeLog() {
         Stage0Log.handOver((level, message) -> lines.add(level + " " + message));
@@ -71,81 +71,81 @@ class Stage0Test {
 
     @Test
     @SuppressWarnings("unchecked")
-    void startsTheCarriedCoreWithTheContract() throws IOException {
-        Path core = TestSupport.fakeCore(folder);
-        System.setProperty("test.bootstrap.jars", core.toString());
-        System.setProperty("test.bootstrap.configs", "a.mixins.json,b.mixins.json");
+    void startsTheCarriedLibWithTheContract() throws IOException {
+        Path lib = TestSupport.fakeLib(folder);
+        System.setProperty("test.stage1.jars", lib.toString());
+        System.setProperty("test.stage1.configs", "a.mixins.json,b.mixins.json");
 
         run();
 
-        Map<?, ?> context = (Map<?, ?>) System.getProperties().get("test.bootstrap.context");
+        Map<?, ?> context = (Map<?, ?>) System.getProperties().get("test.stage1.context");
         assertEquals(Stage0.CONTRACT, context.get("contract"));
         assertEquals("2.0.0-minecraft", context.get("stage0Version"));
         assertEquals("unknown", context.get("platform"));
         assertEquals(Paths.get("game"), context.get("gameDir"));
-        Path coreJar = (Path) context.get("coreJar");
-        assertEquals("core-" + Stage0.sha256(Files.readAllBytes(core)) + ".jar", coreJar.getFileName().toString());
-        assertArrayEquals(Files.readAllBytes(core), Files.readAllBytes(coreJar));
+        Path libJar = (Path) context.get("libJar");
+        assertEquals("lib-" + Stage0.sha256(Files.readAllBytes(lib)) + ".jar", libJar.getFileName().toString());
+        assertArrayEquals(Files.readAllBytes(lib), Files.readAllBytes(libJar));
         assertEquals(1, classpath.size());
         assertEquals(2, configs.size());
 
-        // the core takes the lines logged so far
+        // stage 1 takes the lines logged so far
         ((Consumer<BiConsumer<String, String>>) context.get("stage0Log")).accept((level, message) -> lines.add(level + " " + message));
         assertTrue(logged("INFO stage0 2.0.0-minecraft on UNKNOWN"), lines.toString());
     }
 
     @Test
-    void noCarriedCoreMeansOff() {
+    void noCarriedLibMeansOff() {
         takeLog();
         Stage0.run(Loader.UNKNOWN, Paths.get("game"), classpath::add, configs::add, null);
-        assertNull(System.getProperties().get("test.bootstrap.context"));
-        assertTrue(logged("carries no core"), lines.toString());
+        assertNull(System.getProperties().get("test.stage1.context"));
+        assertTrue(logged("carries no lib"), lines.toString());
     }
 
     @Test
-    void aFailingCoreDoesNotEscape() throws IOException {
-        TestSupport.fakeCore(folder);
-        System.setProperty("test.bootstrap.throw", "true");
+    void aFailingStage1DoesNotEscape() throws IOException {
+        TestSupport.fakeLib(folder);
+        System.setProperty("test.stage1.throw", "true");
         takeLog();
         run();
-        assertTrue(logged("ERROR the core failed"), lines.toString());
-        assertTrue(logged("java.lang.IllegalStateException: broken core"), lines.toString());
+        assertTrue(logged("ERROR stage 1 failed"), lines.toString());
+        assertTrue(logged("java.lang.IllegalStateException: broken lib"), lines.toString());
     }
 
     @Test
-    void aCoreThatCantLoadDoesNotEscape() throws IOException {
-        TestSupport.fakeCore(folder);
-        System.setProperty("test.bootstrap.broken", "true");
+    void aLibThatCantLoadDoesNotEscape() throws IOException {
+        TestSupport.fakeLib(folder);
+        System.setProperty("test.stage1.broken", "true");
         takeLog();
         run();
-        assertTrue(logged("could not start the core"), lines.toString());
+        assertTrue(logged("could not start stage 1"), lines.toString());
     }
 
     @Test
-    void extractingReusesTheSameCore() throws IOException {
-        byte[] core = "core one".getBytes(StandardCharsets.UTF_8);
-        Path jar = Stage0.extract(new ByteArrayInputStream(core), folder);
-        assertEquals(folder.resolve("core-" + Stage0.sha256(core) + ".jar"), jar);
-        assertArrayEquals(core, Files.readAllBytes(jar));
+    void extractingReusesTheSameLib() throws IOException {
+        byte[] lib = "lib one".getBytes(StandardCharsets.UTF_8);
+        Path jar = Stage0.extract(new ByteArrayInputStream(lib), folder);
+        assertEquals(folder.resolve("lib-" + Stage0.sha256(lib) + ".jar"), jar);
+        assertArrayEquals(lib, Files.readAllBytes(jar));
 
         long modified = Files.getLastModifiedTime(jar).toMillis() - 10_000;
         Files.setLastModifiedTime(jar, java.nio.file.attribute.FileTime.fromMillis(modified));
-        assertEquals(jar, Stage0.extract(new ByteArrayInputStream(core), folder));
+        assertEquals(jar, Stage0.extract(new ByteArrayInputStream(lib), folder));
         assertEquals(modified, Files.getLastModifiedTime(jar).toMillis(), "not written again");
 
-        byte[] other = "core two".getBytes(StandardCharsets.UTF_8);
+        byte[] other = "lib two".getBytes(StandardCharsets.UTF_8);
         Path otherJar = Stage0.extract(new ByteArrayInputStream(other), folder);
-        assertFalse(otherJar.equals(jar), "another core gets its own file");
+        assertFalse(otherJar.equals(jar), "another lib gets its own file");
         assertTrue(Files.exists(jar));
     }
 
     @Test
     void extractingReplacesADamagedCopy() throws IOException {
-        byte[] core = "core one".getBytes(StandardCharsets.UTF_8);
-        Path jar = Stage0.extract(new ByteArrayInputStream(core), folder);
+        byte[] lib = "lib one".getBytes(StandardCharsets.UTF_8);
+        Path jar = Stage0.extract(new ByteArrayInputStream(lib), folder);
         TestSupport.write(jar, "damaged");
-        assertEquals(jar, Stage0.extract(new ByteArrayInputStream(core), folder));
-        assertArrayEquals(core, Files.readAllBytes(jar));
+        assertEquals(jar, Stage0.extract(new ByteArrayInputStream(lib), folder));
+        assertArrayEquals(lib, Files.readAllBytes(jar));
     }
 
     @Test
@@ -160,20 +160,20 @@ class Stage0Test {
     }
 
     @Test
-    void logLinesAreKeptUntilTheCoreTakesThem() {
+    void logLinesAreKeptUntilStage1TakesThem() {
         Stage0Log.info("hook %s", "fabric");
         Stage0Log.warn("then %d more", 2);
         Stage0Log.handOver().accept((level, message) -> lines.add(level + " " + message));
         assertEquals(java.util.Arrays.asList("INFO hook fabric", "WARN then 2 more"), lines);
 
         Stage0Log.info("after");
-        assertEquals("INFO after", lines.get(2), "straight to the core");
+        assertEquals("INFO after", lines.get(2), "straight to stage 1");
     }
 
     @Test
     void logErrorsKeepTheStackTrace() {
         takeLog();
-        Stage0Log.error("the core failed", new IllegalStateException("broken"));
+        Stage0Log.error("stage 1 failed", new IllegalStateException("broken"));
         assertTrue(logged("java.lang.IllegalStateException: broken"), lines.toString());
     }
 
