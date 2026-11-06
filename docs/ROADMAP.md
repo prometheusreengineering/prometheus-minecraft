@@ -11,8 +11,8 @@ own renamed copy of it.
 
 Instead, the loader becomes the only entry point:
 
-- **One copy of minecraft-lib in the game**, unrenamed, so there are no copies to keep in sync.
-- **Everything updates itself.** The lib ships inside the loader's auto-updated core.
+- **One copy of minecraft-lib on the game's class path**, unrenamed, so there are no copies to keep in sync.
+- **Everything updates itself.** The lib from Maven, the core and the patches from GitHub releases.
 - **One place handles platforms.** The loader deals with Fabric, Forge and NeoForge, so patches don't each need entry
   points for every platform.
 
@@ -20,11 +20,15 @@ Instead, the loader becomes the only entry point:
 
 ```
 installed: prometheus-<version>-minecraft.jar   (stage 0, Java 8, JDK only, rarely changes)
-   │  one hook per platform: Fabric preLaunch | LaunchWrapper tweaker | ModLauncher service | NeoForge locator
-   │  unpacks the core jar it carries and starts it
+   │  one hook per platform: Fabric language adapter | LaunchWrapper tweaker | ModLauncher service | NeoForge locator
+   │  unpacks the minecraft-lib jar it carries and starts its stage 1
    ▼
-prometheus-core-<version>.jar   (loader logic + minecraft-lib, unrenamed)
-   │  carried: hands off to a newer core (GitHub release, verified + cached) if there is one
+minecraft-lib (stage 1, boot.Stage1)
+   │  hands off to a newer lib of the same major (Maven, verified + cached) if there is one
+   │  puts its jar on the game's class path, for the patches
+   │  starts the newest core (GitHub release, verified + cached)
+   ▼
+prometheus-core-<version>.jar   (loader logic, on stage 1's lib)
    │  reads patches.json, keeps the patches whose target is installed
    │  downloads + verifies each, adds it to the class path, registers its mixin configs, calls PrometheusPatch.init
    ▼
@@ -32,17 +36,22 @@ GitHub releases of each patch: lunar, essential, dawn
    (compiled against minecraft-lib as provided)
 ```
 
-- **Stage 0 → core** passes only JDK types: stage 0 calls `Bootstrap.run(Map<String, Object>)` by reflection, so it
-  doesn't matter which class loader each side lives in. The keys are versioned by `Stage0.CONTRACT`.
-- **One release instead of two.** The lib ships inside the core, so there's no matrix of loader and lib versions.
-- **Stage 0 carries a core and the core updates itself** (like EssentialLoader's stages). Stage 0 used to download the
-  core itself, which needed a hand-kept copy of the lib's `Settings`/`OS` and put the update logic in the one jar users
-  can't easily update. Now stage 0 only unpacks the core it was built with; that core resolves the newest one and hands
-  the launch over. The core jar stays whole inside stage 0, because unpacked its packages would be on the class path
-  twice (ModLauncher 9+ refuses that).
+- **Stage 0 → stage 1 → core** pass only JDK types: each calls the next's `run(Map<String, Object>)` by reflection, so
+  it doesn't matter which class loader each side lives in. Stage 0's keys are versioned by `Stage0.CONTRACT`.
+- **Stage 0 carries the lib, and the lib updates itself and the core** (like EssentialLoader's stages 0/1/2). Stage 0
+  can't make a network call without the lib, and is the one jar users can't easily update, so the update logic lives in
+  the lib. The lib jar stays whole inside stage 0, because unpacked its packages would be on the class path twice
+  (ModLauncher 9+ refuses that).
+- **Stage 0 never touches the lib's classes.** It has its own small `ChildFirstClassLoader` to load the lib, and
+  doesn't even compile against it: a missing class there fails while a hook links `Stage0`, outside every try, and
+  crashes the launch (seen on Fabric 1.21.4).
+- **Lib versions:** stage 1 only updates within its major version, so a new major needs a new stage 0. The core records
+  the lib it was built against (`lib.version`), and stage 1 refuses a core that needs a newer lib or another major.
+- **The core shares stage 1's lib.** It runs in a child-first loader parented on stage 1's, and doesn't contain the lib.
+  The patches see the copy stage 1 put on the game's class path.
 - **Downloads are safe.**
-  - Every jar is checked against the SHA-256 GitHub publishes for the release asset.
-  - GitHub is asked at most once per `update.interval` (the unauthenticated API allows 60 calls an hour).
+  - Every jar is checked against the published SHA-256: a GitHub release asset's `digest`, or a Maven `.sha256`.
+  - Each is checked at most once per `update.interval` (the unauthenticated GitHub API allows 60 calls an hour).
   - Offline launches use the last verified cache.
   - A jar that another running game may have open is never overwritten.
 
@@ -93,12 +102,17 @@ static field.
 - Compiled against the oldest game dependencies (Gson 2.2.4, Log4j 2.0-beta9), and the API only grows.
 - 100% line and branch coverage, enforced by the build.
 
-### Phase 2: the loader split into stage 0 and the core. Done, not released.
+### Phase 2: the loader split into stage 0, stage 1 (in the lib) and the core. Done, not released.
 
 - Built and tested in game with today's patches. The README's Compatibility section has the version table.
+- Stage 1 moved into minecraft-lib (1.2.0) on 2026-11-05, after stage 0 crashed the launch by using a lib class. Since
+  then checked in game on Fabric 1.21.4 only, without patches. The other platforms need checking again.
 - `patches.json` lists several target classes per patch (`classPaths`), so Essential is one entry instead of three.
   Loaders from before stage 0 can't read this format, which is intended.
-- To release: merge `stage0-core`, then publish a release with **both** jars attached.
+- To release:
+  1. deploy minecraft-lib 1.2.0 to Maven, with its `.sha256` files
+  2. merge `stage0-core`
+  3. publish a release with **both** jars attached (stage 1 takes the core from it)
 
 ### Phase 3: the patches. Not started.
 
@@ -122,8 +136,8 @@ For each of [minecraft-lunar](https://github.com/prometheusreengineering/minecra
 
 Still to check before or during this phase:
 
-- **Dawn's timing:** with Fabric `preLaunch` instead of a language adapter, is `DAWN_API_URL` still set before
-  Feather reads it?
+- **Dawn's timing:** stage 0 now starts from a Fabric language adapter, as Dawn's own entry did. Is `DAWN_API_URL`
+  still set before Feather reads it?
 - **Mixins on ModLauncher 1.21+:** do patch mixins load through the core's registration, or through the patch's
   `mods.toml` `[[mixins]]`? Patches may need to keep `[[mixins]]` (metadata only, no entry point).
 - **Calling `PrometheusPatch.init`:** at the right moment on each platform. On ModLauncher that's after the GAME layer
@@ -144,4 +158,5 @@ Still to check before or during this phase:
   - Offline after one online launch: patches load from the cache.
   - Offline on a fresh install: a clear log line, and the game still starts.
   - A corrupted cached jar: it's detected and downloaded again.
-  - Two launches within the update interval: the second makes no GitHub calls.
+  - Two launches within the update interval: the second makes no GitHub or Maven calls.
+  - A newer lib on Maven: stage 1 hands off to it (`handed off by lib` in `loader.log`).
