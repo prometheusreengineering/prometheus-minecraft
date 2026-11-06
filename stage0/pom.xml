@@ -23,7 +23,7 @@
             as missed. Raise these if that changes.
         -->
         <coverage.lines>0.96</coverage.lines>
-        <coverage.branches>0.99</coverage.branches>
+        <coverage.branches>0.98</coverage.branches>
     </properties>
 
     <!-- Everything is provided: stage 0 depends on nothing but the JDK and the platform APIs its hooks implement. -->

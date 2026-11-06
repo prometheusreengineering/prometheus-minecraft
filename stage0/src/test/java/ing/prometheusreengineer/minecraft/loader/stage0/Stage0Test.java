@@ -62,9 +62,11 @@ class Stage0Test {
 
     @Test
     void theFirstHookClaimsTheJvm() {
-        assertTrue(Stage0.claim("modlauncher"));
-        assertFalse(Stage0.claim("neoforge"));
+        Stage0.run(Loader.MODLAUNCHER, Paths.get("game"), classpath::add, configs::add);
+        Stage0.run(Loader.NEOFORGE, Paths.get("game"), classpath::add, configs::add);
         assertEquals("modlauncher", System.getProperty("prometheus.stage0.claimed"));
+        takeLog();
+        assertTrue(logged("neoforge hook skipped, modlauncher already started Prometheus"));
     }
 
     @Test
@@ -79,7 +81,7 @@ class Stage0Test {
         Map<?, ?> context = (Map<?, ?>) System.getProperties().get("test.bootstrap.context");
         assertEquals(Stage0.CONTRACT, context.get("contract"));
         assertEquals("2.0.0-minecraft", context.get("stage0Version"));
-        assertEquals("test", context.get("platform"));
+        assertEquals("unknown", context.get("platform"));
         assertEquals(Paths.get("game"), context.get("gameDir"));
         Path coreJar = (Path) context.get("coreJar");
         assertEquals("core-" + Stage0.sha256(Files.readAllBytes(core)) + ".jar", coreJar.getFileName().toString());
@@ -89,7 +91,7 @@ class Stage0Test {
 
         // the core takes the lines logged so far
         ((Consumer<BiConsumer<String, String>>) context.get("stage0Log")).accept((level, message) -> lines.add(level + " " + message));
-        assertTrue(logged("INFO stage0 2.0.0-minecraft on test"), lines.toString());
+        assertTrue(logged("INFO stage0 2.0.0-minecraft on UNKNOWN"), lines.toString());
     }
 
     @Test

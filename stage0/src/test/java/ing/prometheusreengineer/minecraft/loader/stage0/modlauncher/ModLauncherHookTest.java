@@ -59,7 +59,8 @@ class ModLauncherHookTest {
 
     @Test
     void anotherHookAlreadyRan() {
-        assertTrue(ing.prometheusreengineer.minecraft.loader.stage0.Stage0.claim("neoforge"));
+        // what Stage0.claim leaves behind
+        System.setProperty("prometheus.stage0.claimed", "neoforge");
         ModLauncherHook hook = new ModLauncherHook();
         hook.onLoad(null, Collections.<String>emptySet());
 
@@ -67,6 +68,13 @@ class ModLauncherHookTest {
         assertTrue(hook.legacyScan().isEmpty());
         assertNull(hook.additionalClassesLocator());
         assertNull(hook.additionalResourcesLocator());
+    }
+
+    @Test
+    void scannedBeforeOnLoad() {
+        ModLauncherHook hook = new ModLauncherHook();
+        assertTrue(hook.beginScanning(null).isEmpty());
+        assertTrue(hook.legacyScan().isEmpty());
     }
 
     @Test
