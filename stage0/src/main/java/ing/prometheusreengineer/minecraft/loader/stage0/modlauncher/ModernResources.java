@@ -16,13 +16,13 @@ final class ModernResources {
     private ModernResources() {}
 
     /**
-     * Java 21+ (Forge 1.21+) puts them in the GAME layer, older versions in PLUGIN, as the loader always did.
+     * The GAME layer, with the mods. In PLUGIN, as the loader before stage 0 did on Java 17, a patch's module can't read
+     * the mod it patches ("module prometheus.essential does not read module essential", Forge 1.18.2).
      */
-    static List<ITransformationService.Resource> of(List<Path> jars, boolean modern) {
-        IModuleLayerManager.Layer layer = modern ? IModuleLayerManager.Layer.GAME : IModuleLayerManager.Layer.PLUGIN;
+    static List<ITransformationService.Resource> of(List<Path> jars) {
         List<ITransformationService.Resource> resources = new ArrayList<>();
         for (Path jar : jars) {
-            resources.add(new ITransformationService.Resource(layer, Collections.singletonList(SecureJar.from(jar))));
+            resources.add(new ITransformationService.Resource(IModuleLayerManager.Layer.GAME, Collections.singletonList(SecureJar.from(jar))));
         }
         return resources;
     }
