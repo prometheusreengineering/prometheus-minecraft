@@ -1,5 +1,6 @@
 package ing.prometheusreengineer.minecraft.loader.stage0.fabric;
 
+import ing.prometheusreengineer.minecraft.loader.stage0.Loader;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint;
 import net.fabricmc.loader.impl.launch.FabricLauncherBase;
@@ -13,8 +14,7 @@ public class FabricHook implements PreLaunchEntrypoint {
     @SuppressWarnings("Convert2MethodRef") //explained below
     @Override
     public void onPreLaunch() {
-        if (!Stage0.claim("fabric")) return;
-        Stage0.run("fabric", FabricLoader.getInstance().getGameDir(),
+        Stage0.run(Loader.FABRIC, FabricLoader.getInstance().getGameDir(),
                 jar -> FabricLauncherBase.getLauncher().addToClassPath(jar),
                 // a lambda, not Mixins::addConfiguration, so Mixins is only resolved when a config is added
                 config -> Mixins.addConfiguration(config));

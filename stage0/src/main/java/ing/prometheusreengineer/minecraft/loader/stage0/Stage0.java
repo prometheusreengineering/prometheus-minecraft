@@ -1,5 +1,11 @@
 package ing.prometheusreengineer.minecraft.loader.stage0;
 
+import ing.prometheusreengineer.minecraft.loader.core.Bootstrap;
+import ing.prometheusreengineer.minecraft.util.java.ChildFirstClassLoader;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.VisibleForTesting;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,7 +56,6 @@ public final class Stage0 {
     public static final int CONTRACT = 2;
 
     private static final String CLAIM = "prometheus.stage0.claimed";
-    private static final String BOOTSTRAP = "ing.prometheusreengineer.minecraft.loader.core.Bootstrap";
     private static final String EMBEDDED_CORE = "prometheus-core.jar";
 
     /**
@@ -59,8 +64,7 @@ public final class Stage0 {
      * A system property rather than a static field: NeoForge 1.21.1 calls both our ModLauncher service and our locator,
      * and loads them with different class loaders, so each would see its own static.
      */
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted") //intellij overthinking it
-    public static boolean claim(String hook) {
+    private static boolean claim(String hook) {
         Object first = System.getProperties().putIfAbsent(CLAIM, hook);
         if (first == null) return true;
         Stage0Log.info("%s hook skipped, %s already started Prometheus", hook, first);
@@ -70,14 +74,16 @@ public final class Stage0 {
     /**
      * Never throws: a broken core means no patches this launch, not a crashed game.
      */
-    public static void run(String platform, Path gameDir, Consumer<Path> addToClasspath, Consumer<String> addMixinConfig) {
+    public static void run(@NotNull Loader platform, Path gameDir, Consumer<Path> addToClasspath, Consumer<String> addMixinConfig) {
+        if (!claim(platform.id)) return;
         run(platform, gameDir, addToClasspath, addMixinConfig, Stage0.class.getResourceAsStream(EMBEDDED_CORE));
     }
 
     /**
      * @param embedded the core this jar carries, null if it has none
      */
-    static void run(String platform, Path gameDir, Consumer<Path> addToClasspath, Consumer<String> addMixinConfig, InputStream embedded) {
+    @VisibleForTesting
+    static void run(@NotNull Loader platform, Path gameDir, Consumer<Path> addToClasspath, Consumer<String> addMixinConfig, @Nullable InputStream embedded) {
         try {
             Stage0Log.info("stage0 %s on %s, java %s", version(), platform, System.getProperty("java.version"));
             if (embedded == null) {
@@ -89,16 +95,17 @@ public final class Stage0 {
             Map<String, Object> context = new HashMap<>();
             context.put("contract", CONTRACT);
             context.put("stage0Version", version());
-            context.put("platform", platform);
+            context.put("platform", platform.id);
             context.put("gameDir", gameDir);
             context.put("coreJar", core);
             context.put("addToClasspath", addToClasspath);
             context.put("addMixinConfig", addMixinConfig);
             context.put("stage0Log", Stage0Log.handOver());
 
-            // never closed: the core's classes stay in use for the whole game
             ClassLoader loader = new ChildFirstClassLoader(core, Stage0.class.getClassLoader());
-            Class.forName(BOOTSTRAP, true, loader).getMethod("run", Map.class).invoke(null, context);
+            Class.forName(Bootstrap.class.getName(), true, loader)
+                    .getMethod("run", Map.class)
+                    .invoke(null, context);
         } catch (InvocationTargetException e) {
             Stage0Log.error("the core failed", e.getCause());
         } catch (Throwable t) {
@@ -110,7 +117,7 @@ public final class Stage0 {
      * Into {@code dir/core-<sha256>.jar}. Named by content, so a jar another running game has open is never written
      * over: the same core reuses its file, another core gets its own. Only a damaged copy is replaced.
      */
-    static Path extract(InputStream embedded, Path dir) throws IOException {
+    static @NotNull Path extract(InputStream embedded, Path dir) throws IOException {
         byte[] bytes;
         try (InputStream in = embedded; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[1 << 16];
@@ -132,7 +139,7 @@ public final class Stage0 {
         return jar;
     }
 
-    static String sha256(byte[] bytes) {
+    static @NotNull String sha256(byte[] bytes) {
         StringBuilder hex = new StringBuilder();
         for (byte b : digest("SHA-256").digest(bytes)) hex.append(String.format("%02x", b));
         return hex.toString();

@@ -43,7 +43,7 @@ class Stage0Test {
     }
 
     private void run() {
-        Stage0.run("test", Paths.get("game"), classpath::add, configs::add);
+        Stage0.run(Loader.UNKNOWN, Paths.get("game"), classpath::add, configs::add);
     }
 
     /**
@@ -95,7 +95,7 @@ class Stage0Test {
     @Test
     void noCarriedCoreMeansOff() {
         takeLog();
-        Stage0.run("test", Paths.get("game"), classpath::add, configs::add, null);
+        Stage0.run(Loader.UNKNOWN, Paths.get("game"), classpath::add, configs::add, null);
         assertNull(System.getProperties().get("test.bootstrap.context"));
         assertTrue(logged("carries no core"), lines.toString());
     }

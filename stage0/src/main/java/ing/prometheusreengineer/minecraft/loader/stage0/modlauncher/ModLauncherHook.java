@@ -3,6 +3,7 @@ package ing.prometheusreengineer.minecraft.loader.stage0.modlauncher;
 import cpw.mods.modlauncher.api.IEnvironment;
 import cpw.mods.modlauncher.api.ITransformationService;
 import cpw.mods.modlauncher.api.ITransformer;
+import ing.prometheusreengineer.minecraft.loader.stage0.Loader;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.launch.MixinBootstrap;
 import org.spongepowered.asm.mixin.MixinEnvironment;
@@ -56,8 +57,8 @@ public class ModLauncherHook extends LegacyBase {
     @Override
     public void onLoad(IEnvironment environment, Set<String> otherServices) {
         if (!Stage0.claim("modlauncher")) return;
+        Stage0.run(Loader.MODLAUNCHER, Paths.get("").toAbsolutePath(), jars::add, mixinConfigs::add);
         active = true;
-        Stage0.run("modlauncher", Paths.get("").toAbsolutePath(), jars::add, mixinConfigs::add);
         if (!jars.isEmpty()) registerMixins();
     }
 
