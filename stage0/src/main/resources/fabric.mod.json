@@ -15,6 +15,9 @@
         "discord": "https://discord.gg/zXFKGhRKZQ"
     },
     "icon": "assets/prometheus/icon.png",
+    "languageAdapters": {
+        "prometheus": "ing.prometheusreengineer.minecraft.loader.stage0.fabric.FabricHook"
+    },
     "entrypoints": {
         "preLaunch": [
             "ing.prometheusreengineer.minecraft.loader.stage0.fabric.FabricHook"
